@@ -1,7 +1,7 @@
 // Example of refactored async connect.rs
 
 use anyhow::{anyhow, Context, Result};
-use serde_json::{json, Value as JsonValue};
+use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use url::Url;
 
@@ -140,22 +140,22 @@ impl KiteConnect {
     /// Get all holdings (now async)
     pub async fn holdings(&self) -> Result<JsonValue> {
         let url = self.build_url("/portfolio/holdings", None);
-        let mut resp = self.send_request(url, "GET", None).await?;
-        self.raise_or_return_json(&mut resp).await
+        let resp = self.send_request(url, "GET", None).await?;
+        self.raise_or_return_json(resp).await
     }
 
     /// Get all positions (now async)
     pub async fn positions(&self) -> Result<JsonValue> {
         let url = self.build_url("/portfolio/positions", None);
-        let mut resp = self.send_request(url, "GET", None).await?;
-        self.raise_or_return_json(&mut resp).await
+        let resp = self.send_request(url, "GET", None).await?;
+        self.raise_or_return_json(resp).await
     }
 
     /// Get a list of orders (now async)
     pub async fn orders(&self) -> Result<JsonValue> {
         let url = self.build_url("/orders", None);
-        let mut resp = self.send_request(url, "GET", None).await?;
-        self.raise_or_return_json(&mut resp).await
+        let resp = self.send_request(url, "GET", None).await?;
+        self.raise_or_return_json(resp).await
     }
 
     /// Place an order (now async)
@@ -195,12 +195,12 @@ impl KiteConnect {
         if let Some(t) = tag { params.insert("tag", t); }
 
         let url = self.build_url(&format!("/orders/{}", variety), None);
-        let mut resp = self.send_request(url, "POST", Some(params)).await?;
-        self.raise_or_return_json(&mut resp).await
+        let resp = self.send_request(url, "POST", Some(params)).await?;
+        self.raise_or_return_json(resp).await
     }
 
     /// Helper method to raise or return json response
-    async fn raise_or_return_json(&self, resp: &mut reqwest::Response) -> Result<JsonValue> {
+    async fn raise_or_return_json(&self, resp: reqwest::Response) -> Result<JsonValue> {
         if resp.status().is_success() {
             let jsn: JsonValue = resp.json().await.with_context(|| "Serialization failed")?;
             Ok(jsn)
@@ -303,6 +303,26 @@ pub async fn example_usage_wasm() -> Result<()> {
             }
         }
     });
+    
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Example usage for native environment
+    let mut kite = KiteConnect::new("your_api_key", "your_access_token");
+    
+    // Generate session
+    match kite.generate_session("request_token", "api_secret").await {
+        Ok(session) => println!("Session generated: {:?}", session),
+        Err(e) => println!("Error generating session: {:?}", e),
+    }
+    
+    // Get holdings
+    match kite.holdings().await {
+        Ok(holdings) => println!("Holdings: {:?}", holdings),
+        Err(e) => println!("Error getting holdings: {:?}", e),
+    }
     
     Ok(())
 }

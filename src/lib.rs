@@ -1,4 +1,10 @@
-//! kiteconnect-rs is a rust implementation of the KiteConnect library.
+//! kiteconnect//! 
+//! # Basic Operation
+//! 
+//! kiteconnect-rs provides async HTTP REST API access to KiteConnect APIs
+//! 
+//! 
+//! # Async HTTP APIa rust implementation of the KiteConnect library with async support.
 //! 
 //! The crate is called `kiteconnect` and you can depend of it via cargo:
 //! 
@@ -16,10 +22,10 @@
 //! 
 //! # Basic Operation
 //! 
-//! kiteconnect-rs had both the connect and ticker implementation of the KiteConnect API
+//! kiteconnect-rs is a Rust implementation of the KiteConnect REST API with async support
 //! 
 //! 
-//! # HTTP API
+//! # Async HTTP API
 //! 
 //! 
 //! 
@@ -29,7 +35,8 @@
 //! 
 //! use kiteconnect::connect::KiteConnect;
 //! 
-//! fn main() {
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut kiteconnect = KiteConnect::new("<API-KEY>", "");
 //! 
 //!     // Open browser with this URL and get the request token from the callback
@@ -37,70 +44,18 @@
 //!     println!("{:?}", loginurl);
 //! 
 //!     // Generate access token with the above request token
-//!     let resp = kiteconnect.generate_session("<REQUEST-TOKEN>", "<API-SECRET>");
+//!     let resp = kiteconnect.generate_session("<REQUEST-TOKEN>", "<API-SECRET>").await?;
 //!     // `generate_session` internally sets the access token from the response
 //!     println!("{:?}", resp);
 //! 
-//!     let holdings: json::Value = kiteconnect.holdings().unwrap();
+//!     let holdings: json::Value = kiteconnect.holdings().await?;
 //!     println!("{:?}", holdings);
-//! # }
-//! ```
 //! 
-//! # Ticker
-//! ```rust, no_run
-//! extern crate kiteconnect;
-//! extern crate serde_json as json;
-//! 
-//! use kiteconnect::ticker::{KiteTicker, KiteTickerHandler, WebSocketHandler};
-//! 
-//! #[derive(Debug)]
-//! struct CustomHandler {
-//!     count: u32
+//!     Ok(())
 //! }
-//! 
-//! impl KiteTickerHandler for CustomHandler {
-//!     fn on_open<T>(&mut self, ws: &mut WebSocketHandler<T>)
-//!     where T: KiteTickerHandler {
-//!         // Subscribe to a list of tokens on opening the websocket connection
-//!         ws.subscribe(vec![123456]);
-//!         println!("Fellow on_open callback");
-//!     }
-//!     fn on_ticks<T>(&mut self, ws: &mut WebSocketHandler<T>, tick: Vec<json::Value>)
-//!     where T: KiteTickerHandler {
-//!         println!("{:?}", tick);
-//!         println!("Fellow on_ticks callback");
-//!     }
-//! 
-//!     fn on_close<T>(&mut self, ws: &mut WebSocketHandler<T>)
-//!     where T: KiteTickerHandler {
-//!         println!("Fellow on_close callback");
-//!     }
-//! 
-//!     fn on_error<T>(&mut self, ws: &mut WebSocketHandler<T>)
-//!     where T: KiteTickerHandler {
-//!         println!("Fellow on_error callback");
-//!     }
-//! }
-//! 
-//! fn main() {
-//!     let mut ticker = KiteTicker::new("<API-KEY>", "<ACCESS-TOKEN>");
-//! 
-//!     let custom_handler = CustomHandler {
-//!         count: 0
-//!     };
-//! 
-//!     ticker.connect(custom_handler, None);
-//! 
-//!     loop {}
-//! # }
 //! ```
 //!
 #[cfg(test)]
 extern crate mockito;
-extern crate csv;
-extern crate ws;
-extern crate url;
-extern crate byteorder;
 
 pub mod connect;
-pub mod ticker;

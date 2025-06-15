@@ -2,8 +2,20 @@
 [![Crates.io](https://img.shields.io/crates/v/kiteconnect.svg)](https://crates.io/crates/kiteconnect)
 [![Travis](https://img.shields.io/travis/zerodhatech/kiteconnect-rs/master.svg)](https://travis-ci.org/zerodhatech/kiteconnect-rs/)
 
-API wrapper for kiteconnect in rust
+Async API wrapper for Kite Connect with WASM support
 
+## Features
+
+✨ **Async/Await Support**: Built with modern Rust async patterns for better performance  
+🌐 **WASM Compatible**: Run in browsers with WebAssembly support  
+🔄 **Multi-platform**: Native and Web targets supported  
+📦 **Modern Dependencies**: Updated to latest Rust ecosystem libraries  
+🧪 **Well Tested**: Comprehensive test coverage  
+
+## Platform Support
+
+- **Native**: Full API support with CSV parsing for instruments
+- **WASM**: All APIs supported (instruments return raw CSV for client-side parsing)
 
 ## Docs
 
@@ -11,20 +23,24 @@ https://docs.rs/kiteconnect
 
 ## Usage
 
-Head on to https://crates.io/crates/kiteconnect
+Add to your `Cargo.toml`:
 
-Copy `kiteconnect = "<VERSION>"` dependency to Cargo.toml file
+```toml
+[dependencies]
+kiteconnect = { version = "0.3.0", features = ["native"] }
 
+# For WASM targets
+# kiteconnect = { version = "0.3.0", features = ["wasm"] }
+```
 
-### KiteConnect REST APIs
+### KiteConnect REST APIs (Async)
 
 ```rust
-extern crate kiteconnect;
-extern crate serde_json as json;
-
 use kiteconnect::connect::KiteConnect;
+use serde_json::Value as JsonValue;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut kiteconnect = KiteConnect::new("<API-KEY>", "");
 
     // Open browser with this URL and get the request token from the callback
@@ -32,64 +48,15 @@ fn main() {
     println!("{:?}", loginurl);
 
     // Generate access token with the above request token
-    let resp = kiteconnect.generate_session("<REQUEST-TOKEN>", "<API-SECRET>");
+    let resp = kiteconnect.generate_session("<REQUEST-TOKEN>", "<API-SECRET>").await?;
     // `generate_session` internally sets the access token from the response
     println!("{:?}", resp);
 
-    let holdings: json::Value = kiteconnect.holdings().unwrap();
+    let holdings: JsonValue = kiteconnect.holdings().await?;
     println!("{:?}", holdings);
+
+    Ok(())
 }
-```
-
-### Kite Ticker Websocket
-
-```rust
-extern crate kiteconnect;
-extern crate serde_json as json;
-
-use kiteconnect::ticker::{KiteTicker, KiteTickerHandler, WebSocketHandler}
-
-#[derive(Debug)]
-struct CustomHandler {
-    count: u32
-}
-
-impl KiteTickerHandler for CustomHandler {
-    fn on_open<T>(&mut self, ws: &mut WebSocketHandler<T>)
-    where T: KiteTickerHandler {
-        // Subscribe to a list of tokens on opening the websocket connection
-        ws.subscribe(vec![123456]);
-        println!("Fellow on_open callback");
-    }
-    fn on_ticks<T>(&mut self, ws: &mut WebSocketHandler<T>, tick: Vec<json::Value>)
-    where T: KiteTickerHandler {
-        println!("{:?}", tick);
-        println!("Fellow on_ticks callback");
-    }
-
-    fn on_close<T>(&mut self, ws: &mut WebSocketHandler<T>)
-    where T: KiteTickerHandler {
-        println!("Fellow on_close callback");
-    }
-
-    fn on_error<T>(&mut self, ws: &mut WebSocketHandler<T>)
-    where T: KiteTickerHandler {
-        println!("Fellow on_error callback");
-    }
-}
-
-fn main() {
-    let mut ticker = KiteTicker::new("<API-KEY>", "<ACCESS-TOKEN>");
-
-    let custom_handler = CustomHandler {
-        count: 0
-    };
-
-    ticker.connect(custom_handler, None);
-
-    loop {}
-}
-
 ```
 
 ## Running Examples
@@ -98,11 +65,6 @@ fn main() {
 
 ```bash
 cargo run --example connect_sample
-```
-
-### KiteConnect Websocket sample
-```bash
-cargo run --example ticker_sample
 ```
 
 ## TODO
