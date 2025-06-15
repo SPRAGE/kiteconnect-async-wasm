@@ -1,0 +1,15 @@
+{
+    "mcp": {
+
+        "inputs": [],
+        "servers": {
+            "rustdoc-mcp": {
+                    "command": "rdoc-mcp",
+                    "args": [
+                        "--server-type",
+                        "stdio"
+                    ]
+        }
+    }
+}
+}
