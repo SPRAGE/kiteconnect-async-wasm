@@ -1,16 +1,21 @@
-# kiteconnect-rs
-[![Crates.io](https://img.shields.io/crates/v/kiteconnect.svg)](https://crates.io/crates/kiteconnect)
-[![Travis](https://img.shields.io/travis/zerodhatech/kiteconnect-rs/master.svg)](https://travis-ci.org/zerodhatech/kiteconnect-rs/)
+# kiteconnect-async-wasm
 
-Async API wrapper for Kite Connect with WASM support
+[![Crates.io](https://img.shields.io/crates/v/kiteconnect-async-wasm.svg)](https://crates.io/crates/kiteconnect-async-wasm)
+[![Documentation](https://docs.rs/kiteconnect-async-wasm/badge.svg)](https://docs.rs/kiteconnect-async-wasm)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
+
+**Modern async Rust client for KiteConnect REST APIs with WASM support**
+
+A clean, well-documented, and focused Rust library for KiteConnect API integration. This library provides:
 
 ## Features
 
-✨ **Async/Await Support**: Built with modern Rust async patterns for better performance  
-🌐 **WASM Compatible**: Run in browsers with WebAssembly support  
-🔄 **Multi-platform**: Native and Web targets supported  
-📦 **Modern Dependencies**: Updated to latest Rust ecosystem libraries  
-🧪 **Well Tested**: Comprehensive test coverage  
+- ✅ **Async-first design** with tokio support
+- ✅ **WASM compatibility** for web applications  
+- ✅ **REST-only focus** - no WebSocket complexity
+- ✅ **Comprehensive documentation** with examples
+- ✅ **Type safety** with proper error handling
+- ✅ **No warranties license** (Unlicense)  
 
 ## Platform Support
 
@@ -27,16 +32,16 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kiteconnect = { version = "0.3.0", features = ["native"] }
+kiteconnect-async-wasm = { version = "0.1.0", features = ["native"] }
 
 # For WASM targets
-# kiteconnect = { version = "0.3.0", features = ["wasm"] }
+# kiteconnect-async-wasm = { version = "0.1.0", features = ["wasm"] }
 ```
 
 ### KiteConnect REST APIs (Async)
 
 ```rust
-use kiteconnect::connect::KiteConnect;
+use kiteconnect_async_wasm::connect::KiteConnect;
 use serde_json::Value as JsonValue;
 
 #[tokio::main]
@@ -70,3 +75,10 @@ cargo run --example connect_sample
 ## TODO
 - [ ] Add serializer structs for all kiteconnect returning datastructures
 - [ ] Reconnection mechanism
+
+## License
+
+This software is released into the public domain under The Unlicense. 
+See the [LICENSE](LICENSE) file for details.
+
+**No warranties provided** - This software is provided "as is" without warranty of any kind.

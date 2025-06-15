@@ -1,4 +1,4 @@
-//! # KiteConnect Rust Library
+//! # kiteconnect-async-wasm
 //! 
 //! A modern, async Rust implementation of the Zerodha KiteConnect API with WASM support.
 //! This library provides comprehensive access to KiteConnect's REST APIs for trading, 
@@ -20,16 +20,16 @@
 //! 
 //! ```toml
 //! [dependencies]
-//! kiteconnect = { version = "0.3.0", features = ["native"] }
+//! kiteconnect-async-wasm = { version = "0.1.0", features = ["native"] }
 //! 
 //! # For WASM targets
-//! # kiteconnect = { version = "0.3.0", features = ["wasm"] }
+//! # kiteconnect-async-wasm = { version = "0.1.0", features = ["wasm"] }
 //! ```
 //! 
 //! ## Basic Usage
 //! 
 //! ```rust,no_run
-//! use kiteconnect::connect::KiteConnect;
+//! use kiteconnect_async_wasm::connect::KiteConnect;
 //! use serde_json::Value as JsonValue;
 //! 
 //! #[tokio::main]
@@ -87,7 +87,7 @@
 //! The library uses `anyhow::Result` for comprehensive error handling:
 //! 
 //! ```rust,no_run
-//! # use kiteconnect::connect::KiteConnect;
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let kiteconnect = KiteConnect::new("", "");
@@ -124,7 +124,7 @@
 //! pooling for optimal performance.
 //! 
 //! ```rust,no_run
-//! # use kiteconnect::connect::KiteConnect;
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let kiteconnect = KiteConnect::new("<API-KEY>", "<ACCESS-TOKEN>");

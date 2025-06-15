@@ -18,7 +18,7 @@
 //! ## Example Usage
 //! 
 //! ```rust,no_run
-//! use kiteconnect::connect::KiteConnect;
+//! use kiteconnect_async_wasm::connect::KiteConnect;
 //! 
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -91,7 +91,7 @@ trait RequestHandler {
 /// ## Example
 /// 
 /// ```rust,no_run
-/// use kiteconnect::connect::KiteConnect;
+/// use kiteconnect_async_wasm::connect::KiteConnect;
 /// 
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -111,7 +111,7 @@ trait RequestHandler {
 /// ## Cloning for Concurrent Use
 /// 
 /// ```rust,no_run
-/// use kiteconnect::connect::KiteConnect;
+/// use kiteconnect_async_wasm::connect::KiteConnect;
 /// 
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -174,7 +174,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// // Create client for authentication flow
     /// let mut client = KiteConnect::new("your_api_key", "");
@@ -214,7 +214,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// fn handle_session_expiry() {
     ///     println!("Session expired! Please re-authenticate.");
@@ -250,7 +250,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// let mut client = KiteConnect::new("api_key", "");
     /// client.set_access_token("your_access_token");
@@ -277,7 +277,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// let client = KiteConnect::new("your_api_key", "");
     /// let login_url = client.login_url();
@@ -352,7 +352,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust,no_run
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -475,7 +475,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust,no_run
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -533,7 +533,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust,no_run
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -582,7 +582,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust,no_run
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -733,7 +733,7 @@ impl KiteConnect {
     /// # Example
     /// 
     /// ```rust,no_run
-    /// use kiteconnect::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
     /// 
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {

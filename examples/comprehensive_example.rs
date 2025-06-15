@@ -3,7 +3,7 @@
 //! This example demonstrates various KiteConnect API operations including
 //! authentication, portfolio management, and market data access.
 
-use kiteconnect::connect::KiteConnect;
+use kiteconnect_async_wasm::connect::KiteConnect;
 use std::error::Error;
 
 #[tokio::main]

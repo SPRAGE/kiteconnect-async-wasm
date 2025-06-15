@@ -1,7 +1,7 @@
-extern crate kiteconnect;
+extern crate kiteconnect_async_wasm;
 extern crate serde_json as json;
 
-use kiteconnect::connect::KiteConnect;
+use kiteconnect_async_wasm::connect::KiteConnect;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
