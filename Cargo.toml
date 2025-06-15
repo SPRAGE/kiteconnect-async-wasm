@@ -1,6 +1,6 @@
 [package]
 name = "kiteconnect-async-wasm"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Joe Paul <joeirimpan@gmail.com>"]
 description = "Modern async Rust client for KiteConnect REST APIs with WASM support. Clean, well-documented, and focused on REST-only operations."
 license = "Unlicense"
@@ -16,7 +16,6 @@ edition = "2021"
 [package.metadata.docs.rs]
 features = ["native", "debug"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
-rustdoc-args = ["--cfg", "docsrs"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-06-15
+
+### Fixed
+- **Documentation Build**: Added proper docs.rs configuration for documentation generation
+  - Added `[package.metadata.docs.rs]` section with feature specifications
+  - Added `#![cfg_attr(docsrs, feature(doc_cfg))]` for proper feature gating in docs
+  - Configured docs.rs to build with `native` and `debug` features
+  - Added multi-target support for native and WASM documentation
+
+### Technical Details
+- Ensures docs.rs builds documentation with all relevant features enabled
+- Improves feature flag visibility in generated documentation
+- Fixes any potential docs.rs build failures
+
 ## [0.1.1] - 2025-06-15
 
 ### Added
