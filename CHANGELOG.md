@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-06-15
+
+### Added
+- **Meaningful Feature Flags**: Implemented functional feature flags that provide real platform-specific capabilities
+  - `native`: Enables tokio, SHA-256, CSV parsing with structured JSON output
+  - `wasm`: Enables browser APIs, Web Crypto, raw CSV output for client-side parsing
+  - `debug`: Enables enhanced logging and debugging features
+- **Platform-Specific Implementations**: Different code paths optimized for native vs WASM environments
+- **Feature-Gated Dependencies**: Optional dependencies controlled by feature flags
+- **Comprehensive Testing Documentation**: Added `FEATURE_TESTING.md` with examples and troubleshooting
+- **CI/CD Enhancement**: Updated workflows to test different feature combinations
+
+### Fixed
+- **Documentation Warning**: Resolved "wasm feature does not enable additional features" warning
+- **CSV Parsing**: Now properly feature-gated behind `native` feature
+- **Import Organization**: Cleaned up conditional imports for different platforms
+
+### Changed
+- **Build Configurations**: Multiple valid build configurations now supported:
+  - Native: `cargo build --features native` (default)
+  - WASM: `cargo build --target wasm32-unknown-unknown --features wasm`
+  - Debug: `cargo build --features "native,debug"`
+  - Minimal: `cargo build --no-default-features`
+- **Crypto Implementation**: Platform-specific SHA-256 (native crypto vs Web Crypto API)
+- **CSV Handling**: Native gets structured JSON, WASM gets raw CSV strings
+
+### Technical Details
+- Feature flags now control actual functionality differences
+- Conditional compilation ensures optimal builds for each target
+- Fallback implementations provide clear error messages when features are missing
+- All 30 tests passing across all build configurations
+
 ## [0.1.0] - 2025-06-15
 
 ### Added

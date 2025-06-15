@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Script to bump version numbers in Cargo.toml
 # Usage: ./bump-version.sh [patch|minor|major|VERSION]
