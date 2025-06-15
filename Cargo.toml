@@ -21,23 +21,23 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0.98"
 url = "2.5.4"
-log = "0.4"
+log = { version = "0.4", optional = true }
 async-trait = "0.1.88"
 hex = "0.4"
 
-# Native-specific dependencies
+# Native-specific dependencies (controlled by 'native' feature)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1.45.1", features = ["full"] }
+tokio = { version = "1.45.1", features = ["full"], optional = true }
 reqwest = { version = "0.12.20", features = ["json", "stream"] }
-sha2 = "0.10.9"
-csv = "1.3.1"
+sha2 = { version = "0.10.9", optional = true }
+csv = { version = "1.3.1", optional = true }
 
-# WASM-specific dependencies
+# WASM-specific dependencies (controlled by 'wasm' feature)
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.12.20", features = ["json"], default-features = false }
-wasm-bindgen = "0.2.100"
-wasm-bindgen-futures = "0.4"
-js-sys = "0.3"
+wasm-bindgen = { version = "0.2.100", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
 web-sys = { version = "0.3", features = [
     "console",
     "Window",
@@ -47,8 +47,8 @@ web-sys = { version = "0.3", features = [
     "Storage",
     "Crypto",
     "SubtleCrypto",
-] }
-gloo-utils = "0.1"
+], optional = true }
+gloo-utils = { version = "0.1", optional = true }
 
 [dev-dependencies]
 mockito = "1.7.0"
@@ -62,5 +62,12 @@ wasm-bindgen-test = "0.3.50"
 
 [features]
 default = ["native"]
-native = []
-wasm = []
+
+# Native platform support (tokio, native-tls, file I/O, etc.)
+native = ["dep:tokio", "dep:sha2", "dep:csv"]
+
+# WASM platform support (web-sys, js-sys, browser APIs)
+wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys", "dep:gloo-utils"]
+
+# Enable all logging and debugging features
+debug = ["dep:log"]

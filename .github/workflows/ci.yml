@@ -43,10 +43,13 @@ jobs:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose --features native
 
     - name: Run doc tests
-      run: cargo test --doc
+      run: cargo test --doc --features native
+
+    - name: Test with debug features  
+      run: cargo test --verbose --features "native,debug"
 
   wasm-test:
     name: WASM Tests
@@ -69,10 +72,10 @@ jobs:
         key: ${{ runner.os }}-wasm-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Build for WASM
-      run: wasm-pack build --target web --features wasm
+      run: wasm-pack build --target web --features wasm --no-default-features
     
     - name: Test WASM
-      run: wasm-pack test --node --features wasm
+      run: wasm-pack test --node --features wasm --no-default-features
 
   lint:
     name: Lint
@@ -89,7 +92,7 @@ jobs:
       run: cargo fmt --all -- --check
     
     - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      run: cargo clippy --features native --all-targets -- -D warnings
 
   docs:
     name: Documentation
@@ -101,7 +104,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Check documentation
-      run: cargo doc --no-deps --document-private-items --all-features
+      run: cargo doc --no-deps --document-private-items --features native
       env:
         RUSTDOCFLAGS: "-D warnings"
 

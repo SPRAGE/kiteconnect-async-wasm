@@ -14,16 +14,38 @@
 //! - **⚡ High Performance**: Efficient HTTP client with connection pooling
 //! - **🛡️ Type Safe**: Leverages Rust's type system for safer API interactions
 //! 
+//! ## Feature Flags
+//! 
+//! This crate supports multiple feature flags to enable platform-specific functionality:
+//! 
+//! - **`native`** (default): Enables native platform support with tokio, file I/O, and CSV parsing
+//!   - Includes: `tokio`, `sha2`, `csv` dependencies
+//!   - Best for: Desktop applications, servers, CLI tools
+//! 
+//! - **`wasm`**: Enables WebAssembly support with browser APIs
+//!   - Includes: `wasm-bindgen`, `web-sys`, `js-sys`, `gloo-utils` dependencies
+//!   - Best for: Browser applications, web workers
+//! 
+//! - **`debug`**: Enables additional logging and debugging features
+//!   - Includes: Enhanced `log` output
+//!   - Best for: Development and troubleshooting
+//! 
 //! ## Quick Start
 //! 
 //! Add to your `Cargo.toml`:
 //! 
 //! ```toml
+//! # For native applications (default)
 //! [dependencies]
-//! kiteconnect-async-wasm = { version = "0.1.0", features = ["native"] }
+//! kiteconnect-async-wasm = "0.1.0"
 //! 
-//! # For WASM targets
-//! # kiteconnect-async-wasm = { version = "0.1.0", features = ["wasm"] }
+//! # For WASM/browser applications
+//! [dependencies]
+//! kiteconnect-async-wasm = { version = "0.1.0", default-features = false, features = ["wasm"] }
+//! 
+//! # For development with debugging
+//! [dependencies]
+//! kiteconnect-async-wasm = { version = "0.1.0", features = ["native", "debug"] }
 //! ```
 //! 
 //! ## Basic Usage

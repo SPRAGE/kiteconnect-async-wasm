@@ -50,16 +50,22 @@ use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use reqwest::header::{HeaderMap, AUTHORIZATION, USER_AGENT};
 
-// Conditional imports for different targets
-#[cfg(not(target_arch = "wasm32"))]
-use {csv::ReaderBuilder, sha2::{Sha256, Digest}};
+// Native platform imports
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+use sha2::{Sha256, Digest};
 
-#[cfg(target_arch = "wasm32")]
-use {
-    js_sys::Uint8Array,
-    wasm_bindgen_futures::JsFuture,
-    web_sys::window,
-};
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+use csv::ReaderBuilder;
+
+// WASM platform imports  
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use web_sys::window;
+
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use js_sys::Uint8Array;
+
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use wasm_bindgen_futures::JsFuture;
 
 #[cfg(not(test))]
 const URL: &str = "https://api.kite.trade";
@@ -297,7 +303,7 @@ impl KiteConnect {
     }
 
     /// Compute checksum for authentication - different implementations for native vs WASM
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     async fn compute_checksum(&self, input: &str) -> Result<String> {
         let mut hasher = Sha256::new();
         hasher.update(input.as_bytes());
@@ -305,7 +311,7 @@ impl KiteConnect {
         Ok(hex::encode(result))
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
     async fn compute_checksum(&self, input: &str) -> Result<String> {
         // WASM implementation using Web Crypto API
         let window = window().ok_or_else(|| anyhow!("No window object"))?;
@@ -324,6 +330,15 @@ impl KiteConnect {
         let digest_array = Uint8Array::new(&digest_result);
         let digest_vec: Vec<u8> = digest_array.to_vec();
         Ok(hex::encode(digest_vec))
+    }
+
+    /// Fallback checksum implementation when neither native nor wasm features are enabled
+    #[cfg(not(any(
+        all(feature = "native", not(target_arch = "wasm32")),
+        all(feature = "wasm", target_arch = "wasm32")
+    )))]
+    async fn compute_checksum(&self, _input: &str) -> Result<String> {
+        Err(anyhow!("Checksum computation requires either 'native' or 'wasm' feature to be enabled"))
     }
 
     /// Generates an access token using the request token from login
@@ -934,6 +949,12 @@ impl RequestHandler for KiteConnect {
         method: &str,
         data: Option<HashMap<&str, &str>>,
     ) -> Result<reqwest::Response> {
+        #[cfg(feature = "debug")]
+        log::debug!("Sending {} request to: {}", method, url);
+        
+        #[cfg(all(feature = "debug", feature = "wasm"))]
+        console::log_1(&format!("KiteConnect: {} {}", method, url).into());
+
         let mut headers = HeaderMap::new();
         headers.insert("XKiteVersion", "3".parse().unwrap());
         headers.insert(
@@ -951,6 +972,9 @@ impl RequestHandler for KiteConnect {
             "PUT" => self.client.put(url).headers(headers).form(&data).send().await?,
             _ => return Err(anyhow!("Unknown method!")),
         };
+
+        #[cfg(feature = "debug")]
+        log::debug!("Response status: {}", response.status());
 
         Ok(response)
     }
