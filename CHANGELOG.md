@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2025-06-15
+
 ### Added
 - **CSV Parsing for WASM**: Implemented proper CSV parsing in WASM builds using csv-core
   - WASM builds now return structured JSON data instead of raw CSV strings
@@ -16,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **WASM Feature Enhancement**: Updated WASM feature to include csv-core for better CSV handling
 - **Documentation**: Updated platform-specific feature descriptions to reflect CSV parsing improvements
+- **API Consistency**: WASM and native builds now return identical JSON structures
+
+### Removed
+- **Cleanup**: Removed unnecessary documentation files and build artifacts
+- **Travis CI**: Removed `.travis.yml` in favor of GitHub Actions
+- **Legacy Files**: Cleaned up redundant documentation and generated files
+
+### Technical Details
+- Added `parse_csv_with_core()` helper function for WASM-compatible CSV parsing
+- Updated feature flags to include csv-core dependency for WASM builds
+- Maintained backward compatibility while improving WASM developer experience
 
 ## [0.1.2] - 2025-06-15
 
