@@ -853,7 +853,7 @@ impl KiteConnect {
     }
 
     /// Get instruments list
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
         let url: reqwest::Url = if let Some(exchange) = exchange {
             self.build_url(&format!("/instruments/{}", exchange), None)
@@ -885,7 +885,7 @@ impl KiteConnect {
     }
 
     /// Get instruments list (WASM version - returns raw CSV as string)
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
     pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
         let url: reqwest::Url = if let Some(exchange) = exchange {
             self.build_url(&format!("/instruments/{}", exchange), None)
@@ -902,7 +902,7 @@ impl KiteConnect {
     }
 
     /// Get mutual fund instruments list
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub async fn mf_instruments(&self) -> Result<JsonValue> {
         let url = self.build_url("/mf/instruments", None);
         let resp = self.send_request(url, "GET", None).await?;
@@ -929,7 +929,7 @@ impl KiteConnect {
     }
 
     /// Get mutual fund instruments list (WASM version - returns raw CSV as string)
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
     pub async fn mf_instruments(&self) -> Result<JsonValue> {
         let url = self.build_url("/mf/instruments", None);
         let resp = self.send_request(url, "GET", None).await?;
@@ -938,6 +938,24 @@ impl KiteConnect {
         // For WASM, return the raw CSV data as a string
         // Users can parse it client-side using JS CSV libraries
         Ok(JsonValue::String(body))
+    }
+
+    /// Get instruments list (fallback when no platform features are enabled)
+    #[cfg(not(any(
+        all(feature = "native", not(target_arch = "wasm32")),
+        all(feature = "wasm", target_arch = "wasm32")
+    )))]
+    pub async fn instruments(&self, _exchange: Option<&str>) -> Result<JsonValue> {
+        Err(anyhow!("Instruments functionality requires either 'native' or 'wasm' feature to be enabled"))
+    }
+
+    /// Get mutual fund instruments list (fallback when no platform features are enabled)
+    #[cfg(not(any(
+        all(feature = "native", not(target_arch = "wasm32")),
+        all(feature = "wasm", target_arch = "wasm32")
+    )))]
+    pub async fn mf_instruments(&self) -> Result<JsonValue> {
+        Err(anyhow!("MF instruments functionality requires either 'native' or 'wasm' feature to be enabled"))
     }
 }
 
