@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2025-06-15
+
+### Added
+- **Complete API Parity**: Added all missing APIs from original implementation to achieve 100% feature parity
+  - `historical_data()` - Retrieve historical candlestick data for backtesting and analysis
+  - `place_mf_order()` - Place mutual fund buy/sell orders with quantity or amount options
+  - `cancel_mf_order()` - Cancel pending mutual fund orders
+  - `mf_sips()` - Get SIP (Systematic Investment Plan) details for all or specific SIPs
+  - `place_mf_sip()` - Create new SIPs with flexible frequency and amount options
+  - `modify_mf_sip()` - Modify existing SIPs (amount, frequency, status)
+  - `cancel_mf_sip()` - Cancel active SIPs
+  - `mf_holdings()` - Get mutual fund holdings with current values and returns
+  - `quote()` - Get real-time quotes with market depth and bid/ask data
+  - `ohlc()` - Get OHLC (Open, High, Low, Close) data for instruments
+  - `ltp()` - Get Last Traded Price for quick price checks
+  - `instruments_margins()` - Get margin requirements for specific trading segments
+
+### Enhanced
+- **Comprehensive Documentation**: Each new method includes detailed rustdoc with:
+  - Complete parameter descriptions and examples
+  - Error handling scenarios
+  - Usage patterns for common trading workflows
+  - Real-world code examples that can be copied and used
+- **Modern Async Patterns**: All new methods follow consistent async/await patterns
+- **Cross-Platform Support**: All APIs work seamlessly across native (Tokio) and WASM platforms
+- **Type Safety**: Consistent parameter validation and return types across all methods
+
+### Technical Improvements
+- **37 Total APIs**: Now provides complete coverage of all KiteConnect REST endpoints
+- **Mutual Fund Ecosystem**: Full support for MF orders, SIPs, and portfolio management
+- **Market Data Access**: Real-time and historical data retrieval for trading strategies
+- **Platform Agnostic**: Identical API surface across native and browser environments
+
+### Developer Experience
+- **Example-Driven Documentation**: Every method includes practical usage examples
+- **Error Handling**: Proper Result types with descriptive error messages
+- **IDE Support**: Full IntelliSense/LSP support with rich documentation
+- **Testing Coverage**: Comprehensive test suite covering all new functionality
+
 ## [0.1.3] - 2025-06-15
 
 ### Added

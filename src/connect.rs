@@ -1619,8 +1619,8 @@ impl RequestHandler for KiteConnect {
         #[cfg(feature = "debug")]
         log::debug!("Sending {} request to: {}", method, url);
         
-        #[cfg(all(feature = "debug", feature = "wasm"))]
-        console::log_1(&format!("KiteConnect: {} {}", method, url).into());
+        #[cfg(all(feature = "debug", feature = "wasm", target_arch = "wasm32"))]
+        web_sys::console::log_1(&format!("KiteConnect: {} {}", method, url).into());
 
         let mut headers = HeaderMap::new();
         headers.insert("XKiteVersion", "3".parse().unwrap());
