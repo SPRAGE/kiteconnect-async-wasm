@@ -759,6 +759,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "csv",
+ "csv-core",
  "env_logger",
  "gloo-utils",
  "hex",

@@ -54,6 +54,7 @@ web-sys = { version = "0.3", features = [
     "SubtleCrypto",
 ], optional = true }
 gloo-utils = { version = "0.1", optional = true }
+csv-core = { version = "0.1.12", optional = true }
 
 [dev-dependencies]
 mockito = "1.7.0"
@@ -72,7 +73,7 @@ default = ["native"]
 native = ["dep:tokio", "dep:sha2", "dep:csv"]
 
 # WASM platform support (web-sys, js-sys, browser APIs)
-wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys", "dep:gloo-utils"]
+wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys", "dep:gloo-utils", "dep:csv-core"]
 
 # Enable all logging and debugging features
 debug = ["dep:log"]

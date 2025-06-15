@@ -67,6 +67,9 @@ use js_sys::Uint8Array;
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use wasm_bindgen_futures::JsFuture;
 
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use csv_core::{Reader, ReadFieldResult};
+
 #[cfg(not(test))]
 const URL: &str = "https://api.kite.trade";
 
@@ -145,6 +148,73 @@ pub struct KiteConnect {
     session_expiry_hook: Option<fn() -> ()>,
     /// HTTP client for making requests (shared and reusable)
     client: reqwest::Client,
+}
+
+/// Parse CSV data using csv-core for WASM compatibility
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+fn parse_csv_with_core(csv_data: &str) -> Result<JsonValue> {
+    let mut reader = Reader::new();
+    let mut output = vec![0; 1024];
+    let mut field = Vec::new();
+    let mut input = csv_data.as_bytes();
+    
+    let mut headers: Vec<String> = Vec::new();
+    let mut records: Vec<Vec<String>> = Vec::new();
+    let mut current_record: Vec<String> = Vec::new();
+    let mut is_first_row = true;
+    
+    loop {
+        let (result, input_consumed, output_written) = reader.read_field(input, &mut output);
+        input = &input[input_consumed..];
+        
+        match result {
+            ReadFieldResult::InputEmpty => {
+                if !current_record.is_empty() {
+                    if is_first_row {
+                        headers = current_record.clone();
+                        is_first_row = false;
+                    } else {
+                        records.push(current_record.clone());
+                    }
+                }
+                break;
+            }
+            ReadFieldResult::OutputFull => {
+                field.extend_from_slice(&output[..output_written]);
+                // Continue reading with same input
+            }
+            ReadFieldResult::Field { record_end } => {
+                field.extend_from_slice(&output[..output_written]);
+                let field_str = String::from_utf8_lossy(&field).to_string();
+                current_record.push(field_str);
+                field.clear();
+                
+                if record_end {
+                    if is_first_row {
+                        headers = current_record.clone();
+                        is_first_row = false;
+                    } else {
+                        records.push(current_record.clone());
+                    }
+                    current_record.clear();
+                }
+            }
+        }
+    }
+    
+    // Convert to JSON format
+    let mut result = Vec::new();
+    for record in records {
+        let mut obj = serde_json::Map::new();
+        for (i, field_value) in record.iter().enumerate() {
+            if let Some(header) = headers.get(i) {
+                obj.insert(header.clone(), JsonValue::String(field_value.clone()));
+            }
+        }
+        result.push(JsonValue::Object(obj));
+    }
+    
+    Ok(JsonValue::Array(result))
 }
 
 impl Default for KiteConnect {
@@ -884,7 +954,7 @@ impl KiteConnect {
         Ok(JsonValue::Array(result))
     }
 
-    /// Get instruments list (WASM version - returns raw CSV as string)
+    /// Get instruments list (WASM version - now parses CSV using csv-core)
     #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
     pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
         let url: reqwest::Url = if let Some(exchange) = exchange {
@@ -896,9 +966,8 @@ impl KiteConnect {
         let resp = self.send_request(url, "GET", None).await?;
         let body = resp.text().await?;
         
-        // For WASM, return the raw CSV data as a string
-        // Users can parse it client-side using JS CSV libraries
-        Ok(JsonValue::String(body))
+        // Parse CSV using csv-core for WASM compatibility
+        parse_csv_with_core(&body)
     }
 
     /// Get mutual fund instruments list
@@ -928,16 +997,15 @@ impl KiteConnect {
         Ok(JsonValue::Array(result))
     }
 
-    /// Get mutual fund instruments list (WASM version - returns raw CSV as string)
+    /// Get mutual fund instruments list (WASM version - now parses CSV using csv-core)
     #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
     pub async fn mf_instruments(&self) -> Result<JsonValue> {
         let url = self.build_url("/mf/instruments", None);
         let resp = self.send_request(url, "GET", None).await?;
         let body = resp.text().await?;
         
-        // For WASM, return the raw CSV data as a string
-        // Users can parse it client-side using JS CSV libraries
-        Ok(JsonValue::String(body))
+        // Parse CSV using csv-core for WASM compatibility
+        parse_csv_with_core(&body)
     }
 
     /// Get instruments list (fallback when no platform features are enabled)
@@ -1240,6 +1308,31 @@ mod tests {
         let data: JsonValue = kiteconnect.mf_instruments().await.unwrap();
         println!("{:?}", data);
         assert_eq!(data[0]["tradingsymbol"].as_str(), Some("INF846K01DP8"));
+    }
+
+    #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+    #[test]
+    fn test_csv_core_parsing() {
+        let csv_data = "instrument_token,exchange_token,tradingsymbol,name\n408065,1594,INFY,INFOSYS\n5720322,22345,NIFTY15DECFUT,\n";
+        let result = parse_csv_with_core(csv_data).unwrap();
+        
+        if let JsonValue::Array(records) = result {
+            assert_eq!(records.len(), 2);
+            
+            // Check first record
+            let first_record = &records[0];
+            assert_eq!(first_record["instrument_token"].as_str(), Some("408065"));
+            assert_eq!(first_record["tradingsymbol"].as_str(), Some("INFY"));
+            assert_eq!(first_record["name"].as_str(), Some("INFOSYS"));
+            
+            // Check second record
+            let second_record = &records[1];
+            assert_eq!(second_record["instrument_token"].as_str(), Some("5720322"));
+            assert_eq!(second_record["tradingsymbol"].as_str(), Some("NIFTY15DECFUT"));
+            assert_eq!(second_record["name"].as_str(), Some(""));
+        } else {
+            panic!("Expected JsonValue::Array");
+        }
     }
 
     // Helper struct to override the URL for testing

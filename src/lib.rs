@@ -22,8 +22,9 @@
 //!   - Includes: `tokio`, `sha2`, `csv` dependencies
 //!   - Best for: Desktop applications, servers, CLI tools
 //! 
-//! - **`wasm`**: Enables WebAssembly support with browser APIs
-//!   - Includes: `wasm-bindgen`, `web-sys`, `js-sys`, `gloo-utils` dependencies
+//! - **`wasm`**: Enables WebAssembly support with browser APIs and CSV parsing
+//!   - Includes: `wasm-bindgen`, `web-sys`, `js-sys`, `gloo-utils`, `csv-core` dependencies
+//!   - Features: Browser-compatible CSV parsing using csv-core
 //!   - Best for: Browser applications, web workers
 //! 
 //! - **`debug`**: Enables additional logging and debugging features
@@ -129,8 +130,9 @@
 //! - High-performance HTTP client
 //! 
 //! ### WASM (Browser)
-//! - All APIs supported
-//! - Raw CSV returned for client-side parsing
+//! - All APIs supported with full CSV parsing
+//! - CSV parsing using csv-core for browser compatibility
+//! - Returns structured JSON data (same as native)
 //! - Compatible with web frameworks
 //! 
 //! ## Examples

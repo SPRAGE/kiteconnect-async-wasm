@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **CSV Parsing for WASM**: Implemented proper CSV parsing in WASM builds using csv-core
+  - WASM builds now return structured JSON data instead of raw CSV strings
+  - Added csv-core dependency for no-std CSV parsing compatibility
+  - Both `instruments()` and `mf_instruments()` now provide consistent output across platforms
+
+### Changed
+- **WASM Feature Enhancement**: Updated WASM feature to include csv-core for better CSV handling
+- **Documentation**: Updated platform-specific feature descriptions to reflect CSV parsing improvements
+
 ## [0.1.2] - 2025-06-15
 
 ### Fixed
