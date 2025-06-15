@@ -12,6 +12,12 @@ categories = ["api-bindings", "web-programming", "wasm"]
 readme = "README.md"
 edition = "2021"
 
+# Configuration for docs.rs documentation builds
+[package.metadata.docs.rs]
+features = ["native", "debug"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

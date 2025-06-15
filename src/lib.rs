@@ -1,4 +1,5 @@
 //! # kiteconnect-async-wasm
+#![cfg_attr(docsrs, feature(doc_cfg))]
 //! 
 //! A modern, async Rust implementation of the Zerodha KiteConnect API with WASM support.
 //! This library provides comprehensive access to KiteConnect's REST APIs for trading, 
