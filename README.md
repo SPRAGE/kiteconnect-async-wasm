@@ -76,6 +76,18 @@ cargo run --example connect_sample
 - [ ] Add serializer structs for all kiteconnect returning datastructures
 - [ ] Reconnection mechanism
 
+## Attribution
+
+**Current Maintainer:** SPRAGE <shauna.pai@gmail.com>
+
+This project was originally created by Joe Paul and other contributors. 
+The current version has been significantly rewritten and modernized with:
+- Complete async/await implementation
+- WASM compatibility
+- Enhanced feature flags system
+- Comprehensive documentation
+- Modern CI/CD pipeline
+
 ## License
 
 This software is released into the public domain under The Unlicense. 
