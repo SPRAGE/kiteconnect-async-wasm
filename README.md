@@ -32,10 +32,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kiteconnect-async-wasm = { version = "0.1.0", features = ["native"] }
+kiteconnect-async-wasm = "0.1.1", features = ["native"] }
 
 # For WASM targets
-# kiteconnect-async-wasm = { version = "0.1.0", features = ["wasm"] }
+# kiteconnect-async-wasm = "0.1.1", features = ["wasm"] }
 ```
 
 ### KiteConnect REST APIs (Async)
