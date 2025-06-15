@@ -1,35 +1,117 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="kiteconnect//!"><title>kiteconnect - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="kiteconnect" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../static.files/storage-82c7156e.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../kiteconnect/index.html">kiteconnect</a><span class="version">0.3.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#basic-operation" title="Basic Operation">Basic Operation</a></li><li><a href="#async-http-apia-rust-implementation-of-the-kiteconnect-library-with-async-support" title="Async HTTP APIa rust implementation of the KiteConnect library with async support.">Async HTTP APIa rust implementation of the KiteConnect library with async support.</a></li><li><a href="#basic-operation-1" title="Basic Operation">Basic Operation</a></li><li><a href="#async-http-api" title="Async HTTP API">Async HTTP API</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>kiteconnect</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/kiteconnect/lib.rs.html#1-61">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>kiteconnect//!</p>
-<h2 id="basic-operation"><a class="doc-anchor" href="#basic-operation">§</a>Basic Operation</h2>
-<p>kiteconnect-rs provides async HTTP REST API access to KiteConnect APIs</p>
-<h2 id="async-http-apia-rust-implementation-of-the-kiteconnect-library-with-async-support"><a class="doc-anchor" href="#async-http-apia-rust-implementation-of-the-kiteconnect-library-with-async-support">§</a>Async HTTP APIa rust implementation of the KiteConnect library with async support.</h2>
-<p>The crate is called <code>kiteconnect</code> and you can depend of it via cargo:</p>
-<div class="example-wrap"><pre class="language-ini"><code>[dependencies.kiteconnect]
-version = &quot;*&quot;</code></pre></div>
-<p>If you want to use the git version:</p>
-<div class="example-wrap"><pre class="language-ini"><code>[dependencies.kiteconnect]
-git = &quot;https://github.com/zerodhatech/kiteconnect-rs&quot;</code></pre></div><h2 id="basic-operation-1"><a class="doc-anchor" href="#basic-operation-1">§</a>Basic Operation</h2>
-<p>kiteconnect-rs is a Rust implementation of the KiteConnect REST API with async support</p>
-<h2 id="async-http-api"><a class="doc-anchor" href="#async-http-api">§</a>Async HTTP API</h2>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">extern crate </span>serde_json <span class="kw">as </span>json;
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="KiteConnect Rust Library"><title>kiteconnect - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="kiteconnect" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../static.files/storage-82c7156e.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../kiteconnect/index.html">kiteconnect</a><span class="version">0.3.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#kiteconnect-rust-library" title="KiteConnect Rust Library">KiteConnect Rust Library</a><ul><li><a href="#features" title="Features">Features</a></li><li><a href="#quick-start" title="Quick Start">Quick Start</a></li><li><a href="#basic-usage" title="Basic Usage">Basic Usage</a></li><li><a href="#available-apis" title="Available APIs">Available APIs</a></li><li><a href="#error-handling" title="Error Handling">Error Handling</a></li><li><a href="#platform-specific-features" title="Platform-Specific Features">Platform-Specific Features</a></li><li><a href="#examples" title="Examples">Examples</a></li><li><a href="#thread-safety" title="Thread Safety">Thread Safety</a></li></ul></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>kiteconnect</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/kiteconnect/lib.rs.html#1-148">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="kiteconnect-rust-library"><a class="doc-anchor" href="#kiteconnect-rust-library">§</a>KiteConnect Rust Library</h2>
+<p>A modern, async Rust implementation of the Zerodha KiteConnect API with WASM support.
+This library provides comprehensive access to KiteConnect’s REST APIs for trading,
+portfolio management, and market data.</p>
+<h3 id="features"><a class="doc-anchor" href="#features">§</a>Features</h3>
+<ul>
+<li><strong>🚀 Async/Await</strong>: Built with modern Rust async patterns using <code>tokio</code></li>
+<li><strong>🌐 WASM Compatible</strong>: Run in browsers with WebAssembly support</li>
+<li><strong>🔄 Cross-Platform</strong>: Native (Linux, macOS, Windows) and Web targets</li>
+<li><strong>📦 Modern Dependencies</strong>: Updated to latest Rust ecosystem libraries</li>
+<li><strong>🧪 Well Tested</strong>: Comprehensive test coverage with mocked responses</li>
+<li><strong>⚡ High Performance</strong>: Efficient HTTP client with connection pooling</li>
+<li><strong>🛡️ Type Safe</strong>: Leverages Rust’s type system for safer API interactions</li>
+</ul>
+<h3 id="quick-start"><a class="doc-anchor" href="#quick-start">§</a>Quick Start</h3>
+<p>Add to your <code>Cargo.toml</code>:</p>
+<div class="example-wrap"><pre class="language-toml"><code>[dependencies]
+kiteconnect = { version = &quot;0.3.0&quot;, features = [&quot;native&quot;] }
  
-<span class="kw">use </span>kiteconnect::connect::KiteConnect;
+# For WASM targets
+# kiteconnect = { version = &quot;0.3.0&quot;, features = [&quot;wasm&quot;] }</code></pre></div><h3 id="basic-usage"><a class="doc-anchor" href="#basic-usage">§</a>Basic Usage</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect::connect::KiteConnect;
+<span class="kw">use </span>serde_json::Value <span class="kw">as </span>JsonValue;
  
 <span class="attr">#[tokio::main]
 </span><span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>kiteconnect = KiteConnect::new(<span class="string">"&lt;API-KEY&gt;"</span>, <span class="string">""</span>);
+    <span class="comment">// Initialize KiteConnect client
+    </span><span class="kw">let </span><span class="kw-2">mut </span>kiteconnect = KiteConnect::new(<span class="string">"&lt;YOUR-API-KEY&gt;"</span>, <span class="string">""</span>);
  
-    <span class="comment">// Open browser with this URL and get the request token from the callback
-    </span><span class="kw">let </span>loginurl = kiteconnect.login_url();
-    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, loginurl);
+    <span class="comment">// Step 1: Get login URL
+    </span><span class="kw">let </span>login_url = kiteconnect.login_url();
+    <span class="macro">println!</span>(<span class="string">"Login URL: {}"</span>, login_url);
+     
+    <span class="comment">// Step 2: After user login, generate session with request token
+    </span><span class="kw">let </span>session_response = kiteconnect
+        .generate_session(<span class="string">"&lt;REQUEST-TOKEN&gt;"</span>, <span class="string">"&lt;API-SECRET&gt;"</span>)
+        .<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="macro">println!</span>(<span class="string">"Session: {:?}"</span>, session_response);
  
-    <span class="comment">// Generate access token with the above request token
-    </span><span class="kw">let </span>resp = kiteconnect.generate_session(<span class="string">"&lt;REQUEST-TOKEN&gt;"</span>, <span class="string">"&lt;API-SECRET&gt;"</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="comment">// `generate_session` internally sets the access token from the response
-    </span><span class="macro">println!</span>(<span class="string">"{:?}"</span>, resp);
- 
-    <span class="kw">let </span>holdings: json::Value = kiteconnect.holdings().<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, holdings);
+    <span class="comment">// Step 3: Use the API (access token is automatically set)
+    </span><span class="kw">let </span>holdings: JsonValue = kiteconnect.holdings().<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="macro">println!</span>(<span class="string">"Holdings: {:?}"</span>, holdings);
  
     <span class="prelude-val">Ok</span>(())
 }</code></pre></div>
-</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="connect/index.html" title="mod kiteconnect::connect">connect</a></dt></dl></section></div></main></body></html>
+<h3 id="available-apis"><a class="doc-anchor" href="#available-apis">§</a>Available APIs</h3>
+<p>The library provides access to all KiteConnect REST APIs:</p>
+<h4 id="authentication"><a class="doc-anchor" href="#authentication">§</a>Authentication</h4>
+<ul>
+<li><code>login_url()</code> - Generate login URL</li>
+<li><code>generate_session()</code> - Create session with request token</li>
+<li><code>invalidate_session()</code> - Logout user</li>
+</ul>
+<h4 id="portfolio"><a class="doc-anchor" href="#portfolio">§</a>Portfolio</h4>
+<ul>
+<li><code>holdings()</code> - Get user holdings</li>
+<li><code>positions()</code> - Get user positions</li>
+<li><code>margins()</code> - Get account margins</li>
+</ul>
+<h4 id="orders"><a class="doc-anchor" href="#orders">§</a>Orders</h4>
+<ul>
+<li><code>orders()</code> - Get all orders</li>
+<li><code>order_trades()</code> - Get trades for specific order</li>
+<li><code>trades()</code> - Get all trades</li>
+</ul>
+<h4 id="market-data"><a class="doc-anchor" href="#market-data">§</a>Market Data</h4>
+<ul>
+<li><code>instruments()</code> - Get instrument list</li>
+<li><code>trigger_range()</code> - Get trigger range for instruments</li>
+</ul>
+<h4 id="mutual-funds"><a class="doc-anchor" href="#mutual-funds">§</a>Mutual Funds</h4>
+<ul>
+<li><code>mf_orders()</code> - Get mutual fund orders</li>
+<li><code>mf_instruments()</code> - Get mutual fund instruments</li>
+</ul>
+<h3 id="error-handling"><a class="doc-anchor" href="#error-handling">§</a>Error Handling</h3>
+<p>The library uses <code>anyhow::Result</code> for comprehensive error handling:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">match </span>kiteconnect.holdings().<span class="kw">await </span>{
+    <span class="prelude-val">Ok</span>(holdings) =&gt; <span class="macro">println!</span>(<span class="string">"Holdings: {:?}"</span>, holdings),
+    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"Error fetching holdings: {}"</span>, e),
+}</code></pre></div>
+<h3 id="platform-specific-features"><a class="doc-anchor" href="#platform-specific-features">§</a>Platform-Specific Features</h3><h4 id="native-tokio"><a class="doc-anchor" href="#native-tokio">§</a>Native (Tokio)</h4>
+<ul>
+<li>Full CSV parsing for instruments</li>
+<li>Complete async/await support</li>
+<li>High-performance HTTP client</li>
+</ul>
+<h4 id="wasm-browser"><a class="doc-anchor" href="#wasm-browser">§</a>WASM (Browser)</h4>
+<ul>
+<li>All APIs supported</li>
+<li>Raw CSV returned for client-side parsing</li>
+<li>Compatible with web frameworks</li>
+</ul>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3>
+<p>See the <code>examples/</code> directory for comprehensive usage examples:</p>
+<ul>
+<li><code>connect_sample.rs</code> - Basic API usage</li>
+<li><code>async_connect_example.rs</code> - Advanced async patterns</li>
+</ul>
+<h3 id="thread-safety"><a class="doc-anchor" href="#thread-safety">§</a>Thread Safety</h3>
+<p>The <code>KiteConnect</code> struct is <code>Clone + Send + Sync</code>, making it safe to use across
+multiple threads and async tasks. The underlying HTTP client uses connection
+pooling for optimal performance.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>kiteconnect = KiteConnect::new(<span class="string">"&lt;API-KEY&gt;"</span>, <span class="string">"&lt;ACCESS-TOKEN&gt;"</span>);
+ 
+<span class="comment">// Clone for use in different tasks
+</span><span class="kw">let </span>kc1 = kiteconnect.clone();
+<span class="kw">let </span>kc2 = kiteconnect.clone();
+ 
+<span class="comment">// Use in concurrent tasks
+</span><span class="kw">let </span>(holdings, positions) = <span class="macro">tokio::try_join!</span>(
+    kc1.holdings(),
+    kc2.positions()
+)<span class="question-mark">?</span>;</code></pre></div>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="connect/index.html" title="mod kiteconnect::connect">connect</a></dt><dd>KiteConnect API Client</dd></dl></section></div></main></body></html>

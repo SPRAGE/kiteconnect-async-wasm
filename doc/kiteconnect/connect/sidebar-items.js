@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["URL"],"struct":["KiteConnect"],"trait":["RequestHandler"]};
+window.SIDEBAR_ITEMS = {"struct":["KiteConnect"]};

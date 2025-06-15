@@ -1,3 +1,50 @@
+//! # KiteConnect API Client
+//! 
+//! This module provides the main [`KiteConnect`] struct and associated methods for
+//! interacting with the Zerodha KiteConnect REST API.
+//! 
+//! ## Overview
+//! 
+//! The KiteConnect API allows you to build trading applications and manage portfolios
+//! programmatically. This module provides async methods for all supported endpoints.
+//! 
+//! ## Authentication Flow
+//! 
+//! 1. **Get Login URL**: Use [`KiteConnect::login_url`] to generate a login URL
+//! 2. **User Login**: Direct user to the URL to complete login
+//! 3. **Generate Session**: Use [`KiteConnect::generate_session`] with the request token
+//! 4. **API Access**: Use any API method with the authenticated client
+//! 
+//! ## Example Usage
+//! 
+//! ```rust,no_run
+//! use kiteconnect::connect::KiteConnect;
+//! 
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut client = KiteConnect::new("your_api_key", "");
+//! 
+//! // Authentication
+//! let login_url = client.login_url();
+//! // ... user completes login and returns request_token ...
+//! 
+//! let session = client.generate_session("request_token", "api_secret").await?;
+//! 
+//! // Portfolio operations
+//! let holdings = client.holdings().await?;
+//! let positions = client.positions().await?;
+//! let margins = client.margins(None).await?;
+//! 
+//! // Order operations  
+//! let orders = client.orders().await?;
+//! let trades = client.trades().await?;
+//! 
+//! // Market data
+//! let instruments = client.instruments(None).await?;
+//! # Ok(())
+//! # }
+//! ```
+
 use serde_json::Value as JsonValue;
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
@@ -20,7 +67,7 @@ const URL: &str = "https://api.kite.trade";
 #[cfg(test)]
 const URL: &str = "http://127.0.0.1:1234";
 
-/// Async trait for handling HTTP requests
+/// Async trait for handling HTTP requests across different platforms
 trait RequestHandler {
     async fn send_request(
         &self,
@@ -30,12 +77,67 @@ trait RequestHandler {
     ) -> Result<reqwest::Response>;
 }
 
-/// Main KiteConnect struct for interacting with Kite Connect API
+/// Main client for interacting with the KiteConnect API
+/// 
+/// This struct provides async methods for all KiteConnect REST API endpoints.
+/// It handles authentication, request formatting, and response parsing automatically.
+/// 
+/// ## Thread Safety
+/// 
+/// `KiteConnect` implements `Clone + Send + Sync`, making it safe to use across
+/// multiple threads and async tasks. The underlying HTTP client uses connection
+/// pooling for optimal performance.
+/// 
+/// ## Example
+/// 
+/// ```rust,no_run
+/// use kiteconnect::connect::KiteConnect;
+/// 
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// // Create a new client
+/// let mut client = KiteConnect::new("your_api_key", "");
+/// 
+/// // Set access token (usually done via generate_session)
+/// client.set_access_token("your_access_token");
+/// 
+/// // Use the API
+/// let holdings = client.holdings().await?;
+/// println!("Holdings: {:?}", holdings);
+/// # Ok(())
+/// # }
+/// ```
+/// 
+/// ## Cloning for Concurrent Use
+/// 
+/// ```rust,no_run
+/// use kiteconnect::connect::KiteConnect;
+/// 
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let client = KiteConnect::new("api_key", "access_token");
+/// 
+/// // Clone for use in different tasks
+/// let client1 = client.clone();
+/// let client2 = client.clone();
+/// 
+/// // Fetch data concurrently
+/// let (holdings, positions) = tokio::try_join!(
+///     client1.holdings(),
+///     client2.positions()
+/// )?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct KiteConnect {
+    /// API key for authentication
     api_key: String,
+    /// Access token for authenticated requests
     access_token: String,
+    /// Optional callback for session expiry handling
     session_expiry_hook: Option<fn() -> ()>,
+    /// HTTP client for making requests (shared and reusable)
     client: reqwest::Client,
 }
 
@@ -62,7 +164,24 @@ impl KiteConnect {
         url
     }
 
-    /// Constructor
+    /// Creates a new KiteConnect client instance
+    /// 
+    /// # Arguments
+    /// 
+    /// * `api_key` - Your KiteConnect API key
+    /// * `access_token` - Access token (can be empty string if using `generate_session`)
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// // Create client for authentication flow
+    /// let mut client = KiteConnect::new("your_api_key", "");
+    /// 
+    /// // Or create with existing access token
+    /// let client = KiteConnect::new("your_api_key", "your_access_token");
+    /// ```
     pub fn new(api_key: &str, access_token: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
@@ -83,17 +202,59 @@ impl KiteConnect {
         }
     }
 
-    /// Sets an expiry hook method for this instance
+    /// Sets a session expiry callback hook for this instance
+    /// 
+    /// This hook will be called when a session expires, allowing you to handle
+    /// re-authentication or cleanup logic.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `method` - Callback function to execute on session expiry
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// fn handle_session_expiry() {
+    ///     println!("Session expired! Please re-authenticate.");
+    /// }
+    /// 
+    /// let mut client = KiteConnect::new("api_key", "access_token");
+    /// client.set_session_expiry_hook(handle_session_expiry);
+    /// ```
     pub fn set_session_expiry_hook(&mut self, method: fn() -> ()) {
         self.session_expiry_hook = Some(method);
     }
 
-    /// Gets the session expiry hook
+    /// Gets the current session expiry hook
+    /// 
+    /// Returns the session expiry callback function if one has been set.
+    /// 
+    /// # Returns
+    /// 
+    /// `Option<fn() -> ()>` - The callback function, or `None` if not set
     pub fn session_expiry_hook(&self) -> Option<fn() -> ()> {
         self.session_expiry_hook
     }
 
-    /// Sets an access token for this instance
+    /// Sets the access token for authenticated API requests
+    /// 
+    /// This is typically called automatically by `generate_session`, but can
+    /// be used manually if you have a pre-existing access token.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `access_token` - The access token string
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// let mut client = KiteConnect::new("api_key", "");
+    /// client.set_access_token("your_access_token");
+    /// ```
     pub fn set_access_token(&mut self, access_token: &str) {
         self.access_token = access_token.to_string();
     }
@@ -103,7 +264,34 @@ impl KiteConnect {
         &self.access_token
     }
 
-    /// Returns the login url
+    /// Generates the KiteConnect login URL for user authentication
+    /// 
+    /// This URL should be opened in a browser to allow the user to log in to their
+    /// Zerodha account. After successful login, the user will be redirected to your
+    /// redirect URL with a `request_token` parameter.
+    /// 
+    /// # Returns
+    /// 
+    /// A login URL string that can be opened in a browser
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// let client = KiteConnect::new("your_api_key", "");
+    /// let login_url = client.login_url();
+    /// 
+    /// println!("Please visit: {}", login_url);
+    /// // User visits URL, logs in, and is redirected with request_token
+    /// ```
+    /// 
+    /// # Authentication Flow
+    /// 
+    /// 1. Generate login URL with this method
+    /// 2. Direct user to the URL in a browser
+    /// 3. User completes login and is redirected with `request_token`
+    /// 4. Use `generate_session()` with the request token to get access token
     pub fn login_url(&self) -> String {
         format!("https://kite.trade/connect/login?api_key={}&v3", self.api_key)
     }
@@ -138,7 +326,56 @@ impl KiteConnect {
         Ok(hex::encode(digest_vec))
     }
 
-    /// Request for access token
+    /// Generates an access token using the request token from login
+    /// 
+    /// This method completes the authentication flow by exchanging the request token
+    /// (obtained after user login) for an access token that can be used for API calls.
+    /// The access token is automatically stored in the client instance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request_token` - The request token received after user login
+    /// * `api_secret` - Your KiteConnect API secret
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result<JsonValue>` containing the session information including access token
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if:
+    /// - The request token is invalid or expired
+    /// - The API secret is incorrect
+    /// - Network request fails
+    /// - Response parsing fails
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut client = KiteConnect::new("your_api_key", "");
+    /// 
+    /// // After user completes login and you receive the request_token
+    /// let session_data = client
+    ///     .generate_session("request_token_from_callback", "your_api_secret")
+    ///     .await?;
+    /// 
+    /// println!("Session created: {:?}", session_data);
+    /// // Access token is now automatically set in the client
+    /// # Ok(())
+    /// # }
+    /// ```
+    /// 
+    /// # Authentication Flow
+    /// 
+    /// 1. Call `login_url()` to get login URL
+    /// 2. User visits URL and completes login
+    /// 3. User is redirected with `request_token` parameter
+    /// 4. Call this method with the request token and API secret
+    /// 5. Access token is automatically set for subsequent API calls
     pub async fn generate_session(
         &mut self,
         request_token: &str,
@@ -214,7 +451,47 @@ impl KiteConnect {
         self.send_request(url, "DELETE", Some(data)).await
     }
 
-    /// Return the account balance and cash margin details for a particular segment
+    /// Retrieves account balance and margin details
+    /// 
+    /// Returns margin information for trading segments including available cash,
+    /// used margins, and available margins for different product types.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `segment` - Optional trading segment ("equity" or "commodity"). If None, returns all segments
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result<JsonValue>` containing margin data with fields like:
+    /// - `available` - Available margin for trading
+    /// - `utilised` - Currently utilized margin
+    /// - `net` - Net available margin
+    /// - `enabled` - Whether the segment is enabled
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the API request fails or the user is not authenticated.
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// // Get margins for all segments
+    /// let all_margins = client.margins(None).await?;
+    /// println!("All margins: {:?}", all_margins);
+    /// 
+    /// // Get margins for specific segment
+    /// let equity_margins = client.margins(Some("equity".to_string())).await?;
+    /// println!("Equity available margin: {}", 
+    ///     equity_margins["data"]["available"]["live_balance"]);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn margins(&self, segment: Option<String>) -> Result<JsonValue> {
         let url: reqwest::Url = if let Some(segment) = segment {
             self.build_url(&format!("/user/margins/{}", segment), None)
@@ -233,14 +510,99 @@ impl KiteConnect {
         self.raise_or_return_json(resp).await
     }
 
-    /// Get all holdings
+    /// Retrieves the user's holdings (stocks held in demat account)
+    /// 
+    /// Holdings represent stocks that are held in the user's demat account.
+    /// This includes information about quantity, average price, current market value,
+    /// profit/loss, and more.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result<JsonValue>` containing holdings data with fields like:
+    /// - `tradingsymbol` - Trading symbol of the instrument
+    /// - `quantity` - Total quantity held
+    /// - `average_price` - Average buying price
+    /// - `last_price` - Current market price
+    /// - `pnl` - Profit and loss
+    /// - `product` - Product type (CNC, MIS, etc.)
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the API request fails or the user is not authenticated.
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let holdings = client.holdings().await?;
+    /// println!("Holdings: {:?}", holdings);
+    /// 
+    /// // Access specific fields
+    /// if let Some(data) = holdings["data"].as_array() {
+    ///     for holding in data {
+    ///         println!("Symbol: {}, Quantity: {}", 
+    ///             holding["tradingsymbol"], holding["quantity"]);
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn holdings(&self) -> Result<JsonValue> {
         let url = self.build_url("/portfolio/holdings", None);
         let resp = self.send_request(url, "GET", None).await?;
         self.raise_or_return_json(resp).await
     }
 
-    /// Get all positions
+    /// Retrieves the user's positions (open positions for the day)
+    /// 
+    /// Positions represent open trading positions for the current trading day.
+    /// This includes both intraday and carry-forward positions with details about
+    /// profit/loss, margin requirements, and position status.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result<JsonValue>` containing positions data with fields like:
+    /// - `tradingsymbol` - Trading symbol of the instrument
+    /// - `quantity` - Net position quantity
+    /// - `buy_quantity` - Total buy quantity
+    /// - `sell_quantity` - Total sell quantity
+    /// - `average_price` - Average position price
+    /// - `pnl` - Realized and unrealized P&L
+    /// - `product` - Product type (MIS, CNC, NRML)
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the API request fails or the user is not authenticated.
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let positions = client.positions().await?;
+    /// println!("Positions: {:?}", positions);
+    /// 
+    /// // Check for open positions
+    /// if let Some(day_positions) = positions["data"]["day"].as_array() {
+    ///     for position in day_positions {
+    ///         if position["quantity"].as_i64().unwrap_or(0) != 0 {
+    ///             println!("Open position: {} qty {}", 
+    ///                 position["tradingsymbol"], position["quantity"]);
+    ///         }
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn positions(&self) -> Result<JsonValue> {
         let url = self.build_url("/portfolio/positions", None);
         let resp = self.send_request(url, "GET", None).await?;
@@ -348,7 +710,50 @@ impl KiteConnect {
         self.cancel_order(order_id, variety, parent_order_id).await
     }
 
-    /// Get a list of orders
+    /// Retrieves a list of all orders for the current trading day
+    /// 
+    /// Returns all orders placed by the user for the current trading day,
+    /// including pending, completed, rejected, and cancelled orders.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result<JsonValue>` containing orders data with fields like:
+    /// - `order_id` - Unique order identifier
+    /// - `tradingsymbol` - Trading symbol
+    /// - `quantity` - Order quantity
+    /// - `price` - Order price
+    /// - `status` - Order status (OPEN, COMPLETE, CANCELLED, REJECTED)
+    /// - `order_type` - Order type (MARKET, LIMIT, SL, SL-M)
+    /// - `product` - Product type (MIS, CNC, NRML)
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the API request fails or the user is not authenticated.
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let orders = client.orders().await?;
+    /// println!("Orders: {:?}", orders);
+    /// 
+    /// // Check order statuses
+    /// if let Some(data) = orders["data"].as_array() {
+    ///     for order in data {
+    ///         println!("Order {}: {} - {}", 
+    ///             order["order_id"], 
+    ///             order["tradingsymbol"], 
+    ///             order["status"]);
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn orders(&self) -> Result<JsonValue> {
         let url = self.build_url("/orders", None);
         let resp = self.send_request(url, "GET", None).await?;
