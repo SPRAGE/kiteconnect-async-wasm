@@ -12,6 +12,25 @@
 //! https://github.com/zerodha/gokiteconnect/blob/master/user.go
 
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+
+/// Custom deserializer for login_time field
+mod login_time_format {
+    use serde::{self, Deserialize, Deserializer};
+    use chrono::{DateTime, Utc, NaiveDateTime};
+
+    const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        NaiveDateTime::parse_from_str(&s, FORMAT)
+            .map_err(serde::de::Error::custom)
+            .map(|dt| dt.and_utc())
+    }
+}
 
 /// User session response after successful authentication
 /// 
@@ -50,8 +69,9 @@ pub struct UserSession {
     pub public_token: String,
     /// A token for getting long standing read permissions (available to certain approved platforms)
     pub refresh_token: Option<String>,
-    /// User's last login time in format "yyyy-mm-dd hh:mm:ss"
-    pub login_time: String,
+    /// User's last login time as a parsed UTC datetime
+    #[serde(deserialize_with = "login_time_format::deserialize")]
+    pub login_time: DateTime<Utc>,
 }
 
 /// User session tokens for token renewal
@@ -298,6 +318,29 @@ impl UserSession {
     pub fn has_order_type(&self, order_type: &str) -> bool {
         self.order_types.contains(&order_type.to_string())
     }
+
+    /// Get the login time formatted as a string
+    pub fn login_time_formatted(&self) -> String {
+        self.login_time.format("%Y-%m-%d %H:%M:%S UTC").to_string()
+    }
+
+    /// Get the duration since the last login
+    pub fn time_since_login(&self) -> chrono::Duration {
+        Utc::now().signed_duration_since(self.login_time)
+    }
+
+    /// Check if the login was within the last specified number of hours
+    pub fn logged_in_within_hours(&self, hours: i64) -> bool {
+        let duration = self.time_since_login();
+        duration.num_hours() <= hours
+    }
+
+    /// Check if the login was today
+    pub fn logged_in_today(&self) -> bool {
+        let today = Utc::now().date_naive();
+        let login_date = self.login_time.date_naive();
+        today == login_date
+    }
 }
 
 impl UserProfile {
@@ -380,5 +423,74 @@ impl AllMargins {
     /// Get margin information for commodity segment
     pub fn commodity_segment(&self) -> &Margins {
         &self.commodity
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{Utc, Datelike, Timelike};
+
+    #[test]
+    fn test_login_time_deserialization() {
+        // Test that we can deserialize a string datetime into DateTime<Utc>
+        let json = r#"{
+            "user_id": "AB1234",
+            "user_name": "John Doe",
+            "user_shortname": "John",
+            "avatar_url": null,
+            "user_type": "individual",
+            "email": "john@example.com",
+            "broker": "ZERODHA",
+            "meta": {"demat_consent": "consent"},
+            "products": ["CNC", "MIS"],
+            "order_types": ["MARKET", "LIMIT"],
+            "exchanges": ["NSE", "BSE"],
+            "api_key": "test_api_key",
+            "access_token": "test_access_token",
+            "public_token": "test_public_token",
+            "refresh_token": "test_refresh_token",
+            "login_time": "2024-01-15 09:15:00"
+        }"#;
+
+        let session: UserSession = serde_json::from_str(json).unwrap();
+        
+        // Verify the datetime was parsed correctly
+        assert_eq!(session.user_id, "AB1234");
+        assert_eq!(session.login_time.year(), 2024);
+        assert_eq!(session.login_time.month(), 1);
+        assert_eq!(session.login_time.day(), 15);
+        assert_eq!(session.login_time.hour(), 9);
+        assert_eq!(session.login_time.minute(), 15);
+        assert_eq!(session.login_time.second(), 0);
+    }
+
+    #[test]
+    fn test_user_session_datetime_methods() {
+        let session = UserSession {
+            user_id: "AB1234".to_string(),
+            user_name: "John Doe".to_string(),
+            user_shortname: "John".to_string(),
+            avatar_url: None,
+            user_type: "individual".to_string(),
+            email: "john@example.com".to_string(),
+            broker: "ZERODHA".to_string(),
+            meta: UserMeta { demat_consent: "consent".to_string() },
+            products: vec!["CNC".to_string()],
+            order_types: vec!["MARKET".to_string()],
+            exchanges: vec!["NSE".to_string()],
+            api_key: "test_api_key".to_string(),
+            access_token: "test_access_token".to_string(),
+            public_token: "test_public_token".to_string(),
+            refresh_token: Some("test_refresh_token".to_string()),
+            login_time: Utc::now() - chrono::Duration::hours(2), // 2 hours ago
+        };
+
+        // Test the helper methods
+        assert!(session.login_time_formatted().contains("UTC"));
+        assert!(session.time_since_login().num_hours() >= 1);
+        assert!(session.logged_in_within_hours(3));
+        assert!(!session.logged_in_within_hours(1));
+        assert!(session.logged_in_today());
     }
 }

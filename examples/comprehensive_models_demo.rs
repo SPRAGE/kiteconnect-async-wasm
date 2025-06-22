@@ -33,11 +33,14 @@ fn main() {
         access_token: "test_access_token".to_string(),
         public_token: "test_public_token".to_string(),
         refresh_token: Some("test_refresh_token".to_string()),
-        login_time: "2024-01-15 09:15:00".to_string(),
+        login_time: chrono::Utc::now() - chrono::Duration::hours(1), // 1 hour ago
     };
     println!("  User ID: {}", user_session.user_id);
     println!("  Name: {}", user_session.user_name);
-    println!("  Email: {}\n", user_session.email);
+    println!("  Email: {}", user_session.email);
+    println!("  Login time: {}", user_session.login_time_formatted());
+    println!("  Logged in {} minutes ago", user_session.time_since_login().num_minutes());
+    println!("  Logged in today: {}\n", user_session.logged_in_today());
 
     // 3. Order demo
     println!("📋 Order Management:");

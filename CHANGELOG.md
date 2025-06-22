@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2025-06-22
+
+### Improved
+- **DateTime Support for login_time**: Enhanced `UserSession.login_time` field with proper `DateTime<Utc>` parsing
+  - Changed from `String` to `DateTime<Utc>` with custom deserializer for "yyyy-mm-dd hh:mm:ss" format
+  - Added utility methods: `login_time_formatted()`, `time_since_login()`, `logged_in_within_hours()`, `logged_in_today()`
+  - Maintains automatic deserialization from KiteConnect API string format
+  - Updated examples to demonstrate datetime functionality and calculation methods
+  - Added comprehensive tests for datetime parsing and utility methods
+
+### Documentation
+- Updated examples to showcase proper DateTime usage and time-based calculations
+- Enhanced comprehensive_models_demo to display login time analysis features
+
 ## [0.1.6] - 2025-06-22
 
 ### Improved

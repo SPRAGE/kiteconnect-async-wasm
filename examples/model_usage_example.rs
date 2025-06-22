@@ -28,7 +28,7 @@ fn main() {
         access_token: "access_token".to_string(),
         public_token: "public_token".to_string(),
         refresh_token: Some("refresh_token".to_string()),
-        login_time: "2024-01-15 09:15:00".to_string(),
+        login_time: chrono::Utc::now() - chrono::Duration::hours(2), // 2 hours ago
     };
     println!("User: {} ({})", user_session.user_name, user_session.user_id);
 
