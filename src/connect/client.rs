@@ -442,36 +442,38 @@ impl KiteConnect {
 
 /// Implement the async request handler for KiteConnect struct
 impl RequestHandler for KiteConnect {
-    async fn send_request(
+    fn send_request(
         &self,
         url: reqwest::Url,
         method: &str,
         data: Option<HashMap<&str, &str>>,
-    ) -> Result<reqwest::Response> {
-        let mut headers = HeaderMap::new();
-        headers.insert("XKiteVersion", "3".parse().unwrap());
-        headers.insert(
-            AUTHORIZATION,
-            format!("token {}:{}", self.api_key, self.access_token)
-                .parse()
-                .unwrap(),
-        );
-        headers.insert(USER_AGENT, "Rust".parse().unwrap());
+    ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send {
+        async move {
+            let mut headers = HeaderMap::new();
+            headers.insert("XKiteVersion", "3".parse().unwrap());
+            headers.insert(
+                AUTHORIZATION,
+                format!("token {}:{}", self.api_key, self.access_token)
+                    .parse()
+                    .unwrap(),
+            );
+            headers.insert(USER_AGENT, "Rust".parse().unwrap());
 
-        #[cfg(feature = "debug")]
-        log::debug!("Making {} request to: {}", method, url);
+            #[cfg(feature = "debug")]
+            log::debug!("Making {} request to: {}", method, url);
 
-        let response = match method {
-            "GET" => self.client.get(url).headers(headers).send().await?,
-            "POST" => self.client.post(url).headers(headers).form(&data).send().await?,
-            "DELETE" => self.client.delete(url).headers(headers).json(&data).send().await?,
-            "PUT" => self.client.put(url).headers(headers).form(&data).send().await?,
-            _ => return Err(anyhow!("Unknown method!")),
-        };
+            let response = match method {
+                "GET" => self.client.get(url).headers(headers).send().await?,
+                "POST" => self.client.post(url).headers(headers).form(&data).send().await?,
+                "DELETE" => self.client.delete(url).headers(headers).json(&data).send().await?,
+                "PUT" => self.client.put(url).headers(headers).form(&data).send().await?,
+                _ => return Err(anyhow!("Unknown method!")),
+            };
 
-        #[cfg(feature = "debug")]
-        log::debug!("Response status: {}", response.status());
+            #[cfg(feature = "debug")]
+            log::debug!("Response status: {}", response.status());
 
-        Ok(response)
+            Ok(response)
+        }
     }
 }
