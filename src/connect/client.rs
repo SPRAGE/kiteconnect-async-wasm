@@ -5,7 +5,7 @@ use reqwest::header::{HeaderMap, AUTHORIZATION, USER_AGENT};
 
 // Import model types for typed responses
 use crate::model::{
-    KiteResponse, KiteErrorResponse,
+    KiteResponse, KiteErrorResponse, UserSession,
 };
 
 use super::request::RequestHandler;
@@ -328,7 +328,7 @@ impl KiteConnect {
     /// 
     /// # Returns
     /// 
-    /// A `Result<JsonValue>` containing the session information including access token
+    /// A `Result<UserSession>` containing the session information including access token
     /// 
     /// # Errors
     /// 
@@ -353,6 +353,7 @@ impl KiteConnect {
     ///     .await?;
     /// 
     /// println!("Session created: {:?}", session_data);
+    /// println!("Access token: {}", session_data.access_token);
     /// // Access token is now automatically set in the client
     /// # Ok(())
     /// # }
@@ -369,7 +370,7 @@ impl KiteConnect {
         &mut self,
         request_token: &str,
         api_secret: &str,
-    ) -> Result<JsonValue> {
+    ) -> Result<UserSession> {
         // Create a hex digest from api key, request token, api secret
         let input = format!("{}{}{}", self.api_key, request_token, api_secret);
         let checksum = self.compute_checksum(&input).await?;
@@ -383,14 +384,9 @@ impl KiteConnect {
         let url = self.build_url("/session/token", None);
         let resp = self.send_request(url, "POST", Some(data)).await?;
 
-        if resp.status().is_success() {
-            let jsn: JsonValue = resp.json().await?;
-            self.set_access_token(jsn["data"]["access_token"].as_str().unwrap());
-            Ok(jsn)
-        } else {
-            let error_text = resp.text().await?;
-            Err(anyhow!(error_text))
-        }
+        let session: UserSession = self.parse_response(resp).await?;
+        self.set_access_token(&session.access_token);
+        Ok(session)
     }
 
     /// Invalidates the access token

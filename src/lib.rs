@@ -65,10 +65,11 @@
 //!     println!("Login URL: {}", login_url);
 //!     
 //!     // Step 2: After user login, generate session with request token
-//!     let session_response = kiteconnect
+//!     let session = kiteconnect
 //!         .generate_session("<REQUEST-TOKEN>", "<API-SECRET>")
 //!         .await?;
-//!     println!("Session: {:?}", session_response);
+//!     println!("Access token: {}", session.access_token);
+//!     println!("User: {}", session.user_name);
 //! 
 //!     // Step 3: Use the API (access token is automatically set)
 //!     let holdings = kiteconnect.holdings().await?;

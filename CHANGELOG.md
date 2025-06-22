@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2025-06-22
+
+### Improved
+- **Typed Session Response**: Updated `generate_session()` method to return strongly-typed `UserSession` struct
+  - Changed return type from `Result<JsonValue>` to `Result<UserSession>` for better type safety
+  - Automatic access token extraction and setting from typed response
+  - Improved documentation examples showing typed field access (`session.access_token`, `session.user_name`)
+  - Maintains backwards compatibility for all functionality while providing better developer experience
+
+### Documentation  
+- Updated README.md and lib.rs examples to demonstrate typed session response usage
+- Enhanced documentation showing how to access user information from session response
+- All documentation tests continue to pass with updated examples
+
 ## [0.1.5] - 2025-06-22
 
 ### Fixed
