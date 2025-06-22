@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2025-06-22
+
+### Fixed
+- **Examples Compatibility**: Updated all examples to work with current modular API structure
+  - Fixed GTT API method calls in examples to use correct signature (`gtts(None)` instead of `gtts()`)
+  - Corrected type mismatches in example struct initialization (`instrument_token: u32` instead of `Option<u32>`)
+  - Updated imports in examples to use new modular organization (`use kiteconnect_async_wasm::model::*`)
+  - Updated examples to use proper constants modules (`products::CNC`, `order_types::LIMIT`, etc.)
+
+### Documentation
+- All examples now compile successfully and demonstrate proper usage of typed API responses
+- Examples properly showcase the transition from JSON-based to struct-based responses
+- Fixed example code to match current API patterns and conventions
+
 ## [0.1.4] - 2025-06-15
 
 ### Added

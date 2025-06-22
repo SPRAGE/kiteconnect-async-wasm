@@ -1,7 +1,8 @@
 //! # Comprehensive KiteConnect API Example
 //! 
 //! This example demonstrates various KiteConnect API operations including
-//! authentication, portfolio management, and market data access.
+//! authentication, portfolio management, order operations, and market data access
+//! using the new modular, type-safe API.
 
 use kiteconnect_async_wasm::connect::KiteConnect;
 use std::error::Error;
@@ -35,51 +36,53 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Step 2: Portfolio Information
     println!("\n=== Portfolio Information ===");
     
-    // Get holdings
+    // Get holdings - now returns typed structs
     match client.holdings().await {
         Ok(holdings) => {
             println!("Holdings retrieved successfully");
-            if let Some(data) = holdings["data"].as_array() {
-                println!("Number of holdings: {}", data.len());
-                for holding in data.iter().take(3) { // Show first 3
-                    println!("  - {} qty: {}", 
-                        holding["tradingsymbol"].as_str().unwrap_or("N/A"),
-                        holding["quantity"]);
-                }
+            println!("Number of holdings: {}", holdings.len());
+            
+            for holding in holdings.iter().take(3) { // Show first 3
+                println!("  📈 {} - Qty: {}, Avg: ₹{:.2}, LTP: ₹{:.2}, P&L: ₹{:.2}", 
+                    holding.tradingsymbol,
+                    holding.quantity,
+                    holding.average_price,
+                    holding.last_price,
+                    holding.pnl
+                );
             }
         }
         Err(e) => println!("Failed to get holdings: {}", e),
     }
-    
-    // Get positions
+
+    // Get positions - typed response
     match client.positions().await {
         Ok(positions) => {
             println!("Positions retrieved successfully");
-            if let Some(day_positions) = positions["data"]["day"].as_array() {
-                let open_positions: Vec<_> = day_positions
-                    .iter()
-                    .filter(|p| p["quantity"].as_i64().unwrap_or(0) != 0)
-                    .collect();
-                    
-                println!("Open positions: {}", open_positions.len());
-                for position in open_positions.iter().take(3) {
-                    println!("  - {} qty: {}", 
-                        position["tradingsymbol"].as_str().unwrap_or("N/A"),
-                        position["quantity"]);
+            println!("Day positions: {}, Net positions: {}", 
+                positions.day.len(), 
+                positions.net.len()
+            );
+            
+            // Show day positions with non-zero quantity
+            for position in &positions.day {
+                if position.quantity != 0 {
+                    println!("  📊 {} - Qty: {}, P&L: ₹{:.2}", 
+                        position.tradingsymbol,
+                        position.quantity,
+                        position.pnl
+                    );
                 }
             }
         }
         Err(e) => println!("Failed to get positions: {}", e),
     }
-    
+
     // Get margins
     match client.margins(None).await {
         Ok(margins) => {
             println!("Margins retrieved successfully");
-            if let Some(equity) = margins["data"]["equity"].as_object() {
-                println!("Equity available balance: {}", 
-                    equity["available"]["live_balance"].as_f64().unwrap_or(0.0));
-            }
+            println!("Available margin: ₹{:.2}", margins.equity.available.live_balance);
         }
         Err(e) => println!("Failed to get margins: {}", e),
     }
@@ -87,45 +90,57 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Step 3: Orders and Trades
     println!("\n=== Orders and Trades ===");
     
-    // Get today's orders
+    // Get today's orders - now returns typed structs
     match client.orders().await {
         Ok(orders) => {
             println!("Orders retrieved successfully");
-            if let Some(data) = orders["data"].as_array() {
-                println!("Total orders today: {}", data.len());
-                
-                // Group by status
-                let mut status_count = std::collections::HashMap::new();
-                for order in data {
-                    let status = order["status"].as_str().unwrap_or("UNKNOWN");
-                    *status_count.entry(status).or_insert(0) += 1;
-                }
-                
-                for (status, count) in status_count {
-                    println!("  - {}: {}", status, count);
-                }
+            println!("Total orders today: {}", orders.len());
+            
+            // Group by status
+            let mut status_count = std::collections::HashMap::new();
+            for order in &orders {
+                *status_count.entry(&order.status).or_insert(0) += 1;
+            }
+            
+            for (status, count) in status_count {
+                println!("  - {}: {}", status, count);
+            }
+            
+            // Show recent orders
+            for order in orders.iter().take(3) {
+                println!("  📝 {} {} {} @ ₹{:.2} - {}", 
+                    order.trading_symbol,
+                    order.transaction_type,
+                    order.quantity,
+                    order.price,
+                    order.status
+                );
             }
         }
         Err(e) => println!("Failed to get orders: {}", e),
     }
     
-    // Get trades
+    // Get trades - typed response
     match client.trades().await {
         Ok(trades) => {
             println!("Trades retrieved successfully");
-            if let Some(data) = trades["data"].as_array() {
-                println!("Total trades today: {}", data.len());
+            println!("Total trades today: {}", trades.len());
+            
+            let total_turnover: f64 = trades
+                .iter()
+                .map(|trade| trade.average_price * trade.quantity)
+                .sum();
                 
-                let total_turnover: f64 = data
-                    .iter()
-                    .filter_map(|trade| {
-                        let price = trade["price"].as_f64()?;
-                        let quantity = trade["quantity"].as_f64()?;
-                        Some(price * quantity)
-                    })
-                    .sum();
-                    
-                println!("Total turnover: ₹{:.2}", total_turnover);
+            println!("Total turnover: ₹{:.2}", total_turnover);
+            
+            // Show recent trades
+            for trade in trades.iter().take(3) {
+                println!("  💰 {} {} {} @ ₹{:.2}", 
+                    trade.trading_symbol,
+                    trade.transaction_type,
+                    trade.quantity,
+                    trade.average_price
+                );
             }
         }
         Err(e) => println!("Failed to get trades: {}", e),
@@ -134,35 +149,79 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Step 4: Market Data
     println!("\n=== Market Data ===");
     
-    // Get instruments (this can be large, so we'll just count)
+    // Get instruments - returns Vec<Instrument>
     match client.instruments(None).await {
         Ok(instruments) => {
             println!("Instruments data retrieved successfully");
-            // Note: instruments() returns CSV data, not JSON
-            println!("Instruments data type: {}", 
-                if instruments.is_string() { "CSV String" } else { "JSON" });
+            println!("Total instruments: {}", instruments.len());
+            
+            // Show some instrument examples
+            for instrument in instruments.iter().take(3) {
+                println!("  🏢 {} ({}) - Token: {}", 
+                    instrument.tradingsymbol,
+                    instrument.exchange,
+                    instrument.instrument_token
+                );
+            }
         }
         Err(e) => println!("Failed to get instruments: {}", e),
     }
     
+    // Demo quote data (you would use real instrument tokens)
+    // let quote_result = client.quote(&["NSE:INFY"]).await;
+    // match quote_result {
+    //     Ok(quotes) => {
+    //         println!("Quote data retrieved successfully");
+    //         for (symbol, quote) in quotes {
+    //             println!("  📊 {} - LTP: ₹{:.2}, Volume: {}", 
+    //                 symbol, quote.last_price, quote.volume);
+    //         }
+    //     }
+    //     Err(e) => println!("Failed to get quotes: {}", e),
+    // }
+    
     // Step 5: Mutual Funds
     println!("\n=== Mutual Funds ===");
     
-    // Get MF orders
+    // Get MF orders - typed response
     match client.mf_orders(None).await {
         Ok(mf_orders) => {
             println!("MF orders retrieved successfully");
-            if let Some(data) = mf_orders["data"].as_array() {
-                println!("MF orders count: {}", data.len());
+            println!("MF orders count: {}", mf_orders.len());
+            
+            for order in mf_orders.iter().take(3) {
+                println!("  🏦 {} - {} ₹{:.2} - {}", 
+                    order.tradingsymbol,
+                    order.transaction_type,
+                    order.amount,
+                    order.status
+                );
             }
         }
         Err(e) => println!("Failed to get MF orders: {}", e),
     }
     
+    // Get MF holdings
+    match client.mf_holdings().await {
+        Ok(mf_holdings) => {
+            println!("MF holdings retrieved successfully");
+            println!("MF holdings count: {}", mf_holdings.len());
+            
+            for holding in mf_holdings.iter().take(3) {
+                println!("  💼 {} - Qty: {:.3}, P&L: ₹{:.2}", 
+                    holding.tradingsymbol,
+                    holding.quantity,
+                    holding.pnl
+                );
+            }
+        }
+        Err(e) => println!("Failed to get MF holdings: {}", e),
+    }
+    
     // Step 6: Concurrent API Calls
     println!("\n=== Concurrent Operations ===");
     
-    // Demonstrate concurrent API calls
+    // Demonstrate concurrent API calls with cloned clients
     let client1 = client.clone();
     let client2 = client.clone();
     let client3 = client.clone();
@@ -181,19 +240,42 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match results {
         Ok((holdings, positions, margins)) => {
             println!("✅ All concurrent requests completed in {:?}", duration);
-            println!("   - Holdings: {} items", 
-                holdings["data"].as_array().map_or(0, |a| a.len()));
-            println!("   - Positions: {} day positions", 
-                positions["data"]["day"].as_array().map_or(0, |a| a.len()));
-            println!("   - Margins: {} segments", 
-                margins["data"].as_object().map_or(0, |o| o.len()));
+            println!("   - Holdings: {} items", holdings.len());
+            println!("   - Day positions: {} items", positions.day.len());
+            println!("   - Net positions: {} items", positions.net.len());
+            println!("   - Available margin: ₹{:.2}", margins.equity.available.live_balance);
         }
         Err(e) => println!("❌ Concurrent requests failed: {}", e),
+    }
+    
+    // Step 7: GTT (Good Till Triggered) Orders
+    println!("\n=== GTT Orders ===");
+    
+    match client.gtts(None).await {
+        Ok(gtts) => {
+            println!("GTT orders retrieved successfully");
+            println!("Active GTT orders: {}", gtts.len());
+            
+            for gtt in gtts.iter().take(3) {
+                println!("  ⏰ {} - Trigger: ₹{:.2}, Status: {}", 
+                    gtt.condition.tradingsymbol,
+                    gtt.condition.trigger_values.first().unwrap_or(&0.0),
+                    gtt.status
+                );
+            }
+        }
+        Err(e) => println!("Failed to get GTT orders: {}", e),
     }
     
     println!("\n=== Example completed ===");
     println!("This example demonstrates the main KiteConnect API features.");
     println!("Replace placeholder values with real API credentials to test.");
+    println!("\nKey benefits of the new modular API:");
+    println!("✓ Type-safe responses (no more JSON parsing!)");
+    println!("✓ Modular architecture for better organization");
+    println!("✓ Comprehensive error handling");
+    println!("✓ Full async/await support");
+    println!("✓ Clone support for concurrent operations");
     
     Ok(())
 }

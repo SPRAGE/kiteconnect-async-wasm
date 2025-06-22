@@ -29,6 +29,7 @@ url = "2.5.4"
 log = { version = "0.4", optional = true }
 async-trait = "0.1.88"
 hex = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 
 # Native-specific dependencies (controlled by 'native' feature)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

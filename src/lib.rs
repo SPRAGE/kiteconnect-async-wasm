@@ -71,39 +71,87 @@
 //!     println!("Session: {:?}", session_response);
 //! 
 //!     // Step 3: Use the API (access token is automatically set)
-//!     let holdings: JsonValue = kiteconnect.holdings().await?;
+//!     let holdings = kiteconnect.holdings().await?;
 //!     println!("Holdings: {:?}", holdings);
 //! 
 //!     Ok(())
 //! }
 //! ```
 //! 
+//! ## Modular Architecture
+//! 
+//! The library is organized into focused modules for better maintainability:
+//! 
+//! ### Core Modules
+//! - **`connect::client`** - Main KiteConnect struct and authentication
+//! - **`connect::portfolio`** - Portfolio operations (holdings, positions, margins)
+//! - **`connect::orders`** - Order management and trading operations  
+//! - **`connect::market`** - Market data and instrument information
+//! - **`connect::mutual_funds`** - Mutual fund operations and SIPs
+//! - **`connect::gtt`** - Good Till Triggered order management
+//! - **`connect::request`** - HTTP request handling abstraction
+//! - **`connect::utils`** - CSV parsing utilities for WASM compatibility
+//! 
+//! ### Model Types
+//! - **`model`** - Comprehensive type definitions for all API responses
+//!   - Portfolio models (Holdings, Positions, Margins)
+//!   - Order models (Order, Trade, OrderResponse) 
+//!   - Market data models (Quote, Instrument, Historical data)
+//!   - Mutual fund models (MFOrder, MFSIP, MFHolding)
+//!   - Error handling types (KiteResponse, KiteErrorResponse)
+//! 
 //! ## Available APIs
 //! 
-//! The library provides access to all KiteConnect REST APIs:
+//! The library provides access to all KiteConnect REST APIs through a clean, modular structure:
 //! 
 //! ### Authentication
-//! - `login_url()` - Generate login URL
-//! - `generate_session()` - Create session with request token
-//! - `invalidate_session()` - Logout user
+//! - `login_url()` - Generate login URL for user authentication
+//! - `generate_session()` - Create session with request token and API secret
+//! - `invalidate_session()` - Logout user and invalidate access token
+//! - `set_access_token()` - Manually set access token
+//! - `set_session_expiry_hook()` - Set callback for session expiry events
 //! 
-//! ### Portfolio
-//! - `holdings()` - Get user holdings
-//! - `positions()` - Get user positions
-//! - `margins()` - Get account margins
+//! ### Portfolio Management
+//! - `profile()` - Get user profile information
+//! - `holdings()` - Get user holdings with P&L
+//! - `positions()` - Get user positions (day and net)
+//! - `margins()` - Get account margins for all segments
+//! - `instruments_margins()` - Get margins for specific segment
 //! 
-//! ### Orders
-//! - `orders()` - Get all orders
+//! ### Order Management  
+//! - `orders()` - Get all orders for the day
+//! - `order_history()` - Get order history for specific order ID
+//! - `place_order()` - Place new orders (regular, bracket, cover, etc.)
+//! - `modify_order()` - Modify existing pending orders
+//! - `cancel_order()` - Cancel pending orders
+//! - `convert_position()` - Convert position between product types
+//! - `trades()` - Get all executed trades
 //! - `order_trades()` - Get trades for specific order
-//! - `trades()` - Get all trades
 //! 
 //! ### Market Data
-//! - `instruments()` - Get instrument list
-//! - `trigger_range()` - Get trigger range for instruments
+//! - `instruments()` - Get complete instrument list (CSV parsed to structs)
+//! - `historical_data()` - Get historical OHLCV candlestick data
+//! - `quote()` - Get real-time quotes with market depth
+//! - `ohlc()` - Get OHLC data for instruments
+//! - `ltp()` - Get last traded price for instruments
+//! - `trigger_range()` - Get valid price ranges for stop-loss orders
 //! 
 //! ### Mutual Funds
+//! - `mf_instruments()` - Get mutual fund instrument list
 //! - `mf_orders()` - Get mutual fund orders
-//! - `mf_instruments()` - Get mutual fund instruments
+//! - `place_mf_order()` - Place mutual fund buy/sell orders
+//! - `cancel_mf_order()` - Cancel pending mutual fund orders
+//! - `mf_holdings()` - Get mutual fund holdings
+//! - `mf_sips()` - Get SIP (Systematic Investment Plan) details
+//! - `place_mf_sip()` - Create new SIP
+//! - `modify_mf_sip()` - Modify existing SIP
+//! - `cancel_mf_sip()` - Cancel SIP
+//! 
+//! ### GTT (Good Till Triggered)
+//! - `gtts()` - Get all GTT orders
+//! - `place_gtt()` - Place new GTT order
+//! - `modify_gtt()` - Modify existing GTT order
+//! - `delete_gtt()` - Delete GTT order
 //! 
 //! ## Error Handling
 //! 
@@ -115,7 +163,13 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let kiteconnect = KiteConnect::new("", "");
 //! match kiteconnect.holdings().await {
-//!     Ok(holdings) => println!("Holdings: {:?}", holdings),
+//!     Ok(holdings) => {
+//!         println!("Holdings: {:?}", holdings);
+//!         // Access typed data directly
+//!         for holding in &holdings {
+//!             println!("Symbol: {}, P&L: {}", holding.tradingsymbol, holding.pnl);
+//!         }
+//!     },
 //!     Err(e) => eprintln!("Error fetching holdings: {}", e),
 //! }
 //! # Ok(())
@@ -125,21 +179,38 @@
 //! ## Platform-Specific Features
 //! 
 //! ### Native (Tokio)
-//! - Full CSV parsing for instruments
-//! - Complete async/await support
-//! - High-performance HTTP client
+//! - Full CSV parsing for instruments with typed structs
+//! - Complete async/await support with `tokio` runtime
+//! - High-performance HTTP client with connection pooling
+//! - Native cryptographic functions for authentication
+//! - File I/O support for caching and logging
 //! 
 //! ### WASM (Browser)
-//! - All APIs supported with full CSV parsing
-//! - CSV parsing using csv-core for browser compatibility
-//! - Returns structured JSON data (same as native)
-//! - Compatible with web frameworks
+//! - All APIs supported with full CSV parsing capability
+//! - CSV parsing using `csv-core` for browser compatibility
+//! - Returns structured typed data (same as native)
+//! - Compatible with web frameworks (React, Vue, etc.)
+//! - Works in web workers for background processing
 //! 
 //! ## Examples
 //! 
 //! See the `examples/` directory for comprehensive usage examples:
-//! - `connect_sample.rs` - Basic API usage
-//! - `async_connect_example.rs` - Advanced async patterns
+//! - `connect_sample.rs` - Basic API usage and authentication flow
+//! - `async_connect_example.rs` - Advanced async patterns and error handling
+//! - `comprehensive_example.rs` - Complete API demonstration
+//! - `model_usage_example.rs` - Working with typed response models
+//! - `response_handling_example.rs` - Error handling and response parsing
+//! 
+//! ## Migration from Original Library
+//! 
+//! This library maintains API compatibility while providing significant improvements:
+//! 
+//! - **Type Safety**: All responses are now strongly typed structs instead of JSON
+//! - **Async/Await**: Modern async patterns replace blocking calls
+//! - **Modular Design**: Clean separation of concerns across modules  
+//! - **WASM Support**: Works in browsers with full CSV parsing capability
+//! - **Better Error Handling**: Comprehensive error types and `anyhow::Result`
+//! - **Performance**: Connection pooling and efficient HTTP client
 //! 
 //! ## Thread Safety
 //! 
@@ -169,4 +240,50 @@
 #[cfg(test)]
 extern crate mockito;
 
+/// Main KiteConnect API client and authentication module
+/// 
+/// This module contains the core [`KiteConnect`] struct and all API methods
+/// organized into focused submodules for better maintainability:
+/// 
+/// - [`client`] - Core struct, authentication, and session management
+/// - [`portfolio`] - Portfolio operations (holdings, positions, margins)  
+/// - [`orders`] - Order management and trading operations
+/// - [`market`] - Market data and instrument information
+/// - [`mutual_funds`] - Mutual fund operations and SIPs
+/// - [`gtt`] - Good Till Triggered order management
+/// 
+/// [`KiteConnect`]: connect::KiteConnect
+/// [`client`]: connect::client
+/// [`portfolio`]: connect::portfolio  
+/// [`orders`]: connect::orders
+/// [`market`]: connect::market
+/// [`mutual_funds`]: connect::mutual_funds
+/// [`gtt`]: connect::gtt
 pub mod connect;
+
+/// Comprehensive data models for all KiteConnect API responses
+/// 
+/// This module provides strongly-typed Rust structs for all API responses,
+/// enabling type-safe interaction with the KiteConnect API. Models are
+/// organized by functionality:
+/// 
+/// - Portfolio models ([`Holdings`], [`Positions`], [`Margins`])
+/// - Order models ([`Order`], [`Trade`], [`OrderResponse`])
+/// - Market data models ([`Quote`], [`Instrument`], [`Historical data`])
+/// - Mutual fund models ([`MFOrder`], [`MFSIP`], [`MFHolding`])
+/// - Response wrappers ([`KiteResponse`], [`KiteErrorResponse`])
+/// 
+/// [`Holdings`]: model::portfolio::Holdings
+/// [`Positions`]: model::portfolio::Positions
+/// [`Margins`]: model::margin::Margins
+/// [`Order`]: model::orders::Order
+/// [`Trade`]: model::orders::Trade
+/// [`OrderResponse`]: model::orders::OrderResponse
+/// [`Quote`]: model::market::Quote
+/// [`Instrument`]: model::market::Instrument
+/// [`MFOrder`]: model::mutualfunds::MFOrder
+/// [`MFSIP`]: model::mutualfunds::MFSIP
+/// [`MFHolding`]: model::mutualfunds::MFHolding
+/// [`KiteResponse`]: model::response::KiteResponse
+/// [`KiteErrorResponse`]: model::errors::KiteErrorResponse
+pub mod model;
