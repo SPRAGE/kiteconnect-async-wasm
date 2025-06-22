@@ -200,7 +200,7 @@ impl KiteConnect {
     /// 
     /// // Access SIP details directly
     /// for sip in &all_sips {
-    ///     println!("SIP: {} - {} ({})", sip.sip_id, sip.tradingsymbol, sip.status);
+    ///     println!("SIP: {} - {} ({})", sip.id, sip.tradingsymbol, sip.status);
     /// }
     /// # Ok(())
     /// # }

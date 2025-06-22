@@ -35,7 +35,7 @@ impl KiteConnect {
     /// 
     /// // Access GTT details directly
     /// for gtt in &gtt_orders {
-    ///     println!("GTT: {} - {} ({})", gtt.id, gtt.trigger_type, gtt.status);
+    ///     println!("GTT: {} - {:?} ({})", gtt.id, gtt.gtt_type, gtt.status);
     /// }
     /// # Ok(())
     /// # }

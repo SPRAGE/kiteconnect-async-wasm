@@ -289,7 +289,7 @@ impl KiteConnect {
     /// for order in &orders {
     ///     println!("Order {}: {} - {}", 
     ///         order.order_id, 
-    ///         order.tradingsymbol, 
+    ///         order.trading_symbol, 
     ///         order.status);
     /// }
     /// # Ok(())
@@ -367,7 +367,7 @@ impl KiteConnect {
     /// println!("Trades: {:?}", trades);
     /// 
     /// // Calculate total volume
-    /// let total_volume: i32 = trades.iter().map(|t| t.quantity).sum();
+    /// let total_volume: f64 = trades.iter().map(|t| t.quantity).sum();
     /// println!("Total volume: {}", total_volume);
     /// # Ok(())
     /// # }
@@ -404,7 +404,7 @@ impl KiteConnect {
     /// 
     /// // Access trade details directly
     /// for trade in &trades {
-    ///     println!("Trade: {} shares at {}", trade.quantity, trade.price);
+    ///     println!("Trade: {} shares at {}", trade.quantity, trade.average_price);
     /// }
     /// # Ok(())
     /// # }

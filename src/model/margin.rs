@@ -301,7 +301,7 @@ impl OrderMarginParam {
     /// # Example
     ///
     /// ```rust
-    /// use kiteconnect::model::margin::OrderMarginParam;
+    /// use kiteconnect_async_wasm::model::margin::OrderMarginParam;
     ///
     /// let param = OrderMarginParam::new(
     ///     "NSE".to_string(),
@@ -376,7 +376,7 @@ impl OrderChargesParam {
     /// # Example
     ///
     /// ```rust
-    /// use kiteconnect::model::margin::OrderChargesParam;
+    /// use kiteconnect_async_wasm::model::margin::OrderChargesParam;
     ///
     /// let param = OrderChargesParam::new(
     ///     "12345".to_string(),
