@@ -1,54 +1,294 @@
-# Version Management Scripts
+# Version Management and Release Process
 
-This directory contains scripts to help manage version bumps and releases.
+This document outlines the **secure version management strategy** for kiteconnect-async-wasm.
 
-## Versioning Strategy
+## 🔄 Secure Release Workflow
 
-This project uses a dual approach for version management with **special handling for major versions**:
+**ALL version updates require manual approval before merging to main!**
 
-### Minor/Patch Versions (0.x.y)
-- **Version Branches**: Each version gets its own branch (e.g., `v0.1.7`, `v0.1.8`) for easy rollback and version-specific maintenance
-- **Version Tags**: Traditional git tags (e.g., `v0.1.7`) for release automation and referencing
-- **Direct to Main**: These versions are committed directly to the main branch
+### Core Principles
 
-### Major Versions (x.0.0) - Breaking Changes
-- **Development Branches**: Major versions create development branches (e.g., `v1.0.0-dev`, `v2.0.0-dev`)
-- **Manual Merge Required**: These branches are **NOT** automatically merged to main
-- **Explicit Approval**: Only merged to main when breaking changes are thoroughly tested and approved
-- **No Automatic Tags**: Tags are only created after manual merge approval
+1. **Development Branch Creation**: All version bumps (patch, minor, major) create development branches
+2. **No Auto-Merge**: No changes are automatically merged to main
+3. **Manual Review**: All changes must be reviewed and manually merged via pull requests  
+4. **Release Only on Main**: Tags and crate publishing only happen after merging to main
+5. **Comprehensive Validation**: Multiple safety checks before any release
 
-## Usage
+### Key Benefits
 
-### Automatic Version Bump
+- 🛡️ **Security**: No accidental releases to main branch
+- 🔍 **Code Review**: All changes reviewed before merging
+- 🧪 **Testing**: Comprehensive validation at every step
+- 📋 **Documentation**: Required updates to CHANGELOG.md
+- 🚀 **Quality**: Only thoroughly tested code reaches production
 
-#### Minor/Patch Versions
+## 📋 Detailed Workflow
+
+### 1. Development Phase
+
+When you need to bump a version:
+
 ```bash
-# Bump patch version (0.1.0 -> 0.1.1)
+# For patch versions (bug fixes)
 ./scripts/bump-version.sh patch
 
-# Bump minor version (0.1.1 -> 0.2.0)
+# For minor versions (new features, backward compatible)  
 ./scripts/bump-version.sh minor
 
-# Set specific minor/patch version
-./scripts/bump-version.sh 0.1.5
-```
-
-These will:
-1. Update version in `Cargo.toml` and `Cargo.lock`
-2. Optionally update README.md version references
-3. Run tests to ensure everything works
-4. Commit changes to current branch
-5. Offer to create a version branch (e.g., `v0.1.8`)
-6. Offer to create a version tag (e.g., `v0.1.8`)
-
-#### Major Versions (Breaking Changes)
-```bash
-# Bump major version (0.2.0 -> 1.0.0) - Creates development branch
+# For major versions (breaking changes)
 ./scripts/bump-version.sh major
 
-# Set specific major version
-./scripts/bump-version.sh 2.0.0
+# For specific version
+./scripts/bump-version.sh 2.1.0
 ```
+
+**What happens:**
+- ✅ Creates development branch: `v{VERSION}-dev`
+- ✅ Updates `Cargo.toml` and `Cargo.lock`
+- ✅ Runs comprehensive tests
+- ✅ Commits changes with detailed message
+- ❌ **NO tags created yet**
+- ❌ **NO publishing to crates.io yet**
+- ❌ **NO merging to main**
+
+### 2. Development on Branch
+
+- **Work on your changes** on the development branch
+- **Add features** (minor versions)
+- **Fix bugs** (patch versions)
+- **Make breaking changes** (major versions)
+- **Update documentation**
+- **Add/update tests**
+
+```bash
+# Push development branch for collaboration
+git push -u origin v{VERSION}-dev
+```
+
+### 3. Review & Merge Phase
+
+```bash
+# Create Pull Request to merge development branch to main
+# This requires manual review and approval
+```
+
+**Pull Request Requirements:**
+- 🔍 **Code Review**: Team review of all changes
+- 🧪 **Test Validation**: All tests must pass
+- 📚 **Documentation**: CHANGELOG.md must be updated
+- ✅ **Approval**: Explicit approval required
+
+### 4. Release Phase (Main Branch Only)
+
+After merging to main:
+
+```bash
+# Switch to main and run release script
+git checkout main
+git pull origin main
+./scripts/release.sh
+```
+
+**Release Script Actions:**
+- ✅ Verifies you're on main branch
+- ✅ Runs comprehensive tests
+- ✅ Validates package can build and publish
+- ✅ Creates git tag `v{VERSION}`
+- ✅ Publishes to crates.io
+- ✅ Pushes tag to origin
+
+## 📊 Version Types
+
+### Patch Version (x.y.Z)
+- **Purpose**: Bug fixes, security patches, performance improvements
+- **Branch**: `v{VERSION}-dev` (e.g., `v0.1.5-dev`)
+- **Compatibility**: Fully backward compatible
+- **Example**: `0.1.4` → `0.1.5`
+
+### Minor Version (x.Y.0)
+- **Purpose**: New features, enhancements, non-breaking changes
+- **Branch**: `v{VERSION}-dev` (e.g., `v0.2.0-dev`) 
+- **Compatibility**: Backward compatible, new functionality added
+- **Example**: `0.1.4` → `0.2.0`
+
+### Major Version (X.0.0)
+- **Purpose**: Breaking changes, API modifications, architectural changes
+- **Branch**: `v{VERSION}-dev` (e.g., `v1.0.0-dev`)
+- **Compatibility**: **Breaking changes** - may require user code updates
+- **Example**: `0.1.4` → `1.0.0`
+
+## 🔧 Script Details
+
+### bump-version.sh
+**Creates development branches for ALL version types**
+
+Features:
+- ✅ Creates isolated development branch
+- ✅ Updates Cargo.toml and Cargo.lock  
+- ✅ Handles README.md version references
+- ✅ Runs tests before committing
+- ✅ Provides clear next steps
+- ✅ Prevents accidental main branch changes
+
+### release.sh  
+**Handles releases ONLY from main branch**
+
+Features:
+- 🔒 **Main branch enforcement**: Only works on main/master
+- 🧪 **Comprehensive validation**: Tests, builds, publish dry-run
+- 🏷️ **Tag creation**: Creates annotated git tags
+- 📦 **Crate publishing**: Publishes to crates.io
+- 🛡️ **Safety checks**: Multiple confirmation steps
+
+## 🚨 Important Safeguards
+
+### Automatic Protections
+- ✅ **Branch Protection**: Development branches cannot auto-merge to main
+- ✅ **Main Branch Only**: Release script only works on main/master branch
+- ✅ **Duplicate Prevention**: Cannot create tags that already exist
+- ✅ **Test Validation**: All tests must pass before release
+- ✅ **Build Verification**: Package must build successfully
+- ✅ **Publish Validation**: Dry-run validation before actual publishing
+
+### Manual Checkpoints
+- 🔍 **Code Review**: All changes reviewed in pull requests
+- 🔍 **Version Approval**: Manual approval required for all version bumps
+- 🔍 **Release Approval**: Manual confirmation required before publishing
+- 🔍 **Documentation**: CHANGELOG.md updates required
+
+## 📚 Complete Examples
+
+### Example: Patch Release (Bug Fix)
+```bash
+# 1. Create development branch
+./scripts/bump-version.sh patch  # Creates v0.1.5-dev branch
+
+# 2. Fix bugs on the development branch
+git add .
+git commit -m "Fix critical API timeout issue"
+
+# 3. Push and create pull request
+git push -u origin v0.1.5-dev
+# Create PR: v0.1.5-dev → main
+
+# 4. After PR review and approval, merge to main
+git checkout main
+git pull origin main
+
+# 5. Release from main branch
+./scripts/release.sh  # Creates tag, publishes to crates.io
+```
+
+### Example: Minor Release (New Features)
+```bash
+# 1. Create development branch  
+./scripts/bump-version.sh minor  # Creates v0.2.0-dev branch
+
+# 2. Add new features
+git add .
+git commit -m "Add new trading indicators API"
+
+# 3. Update documentation
+# Edit CHANGELOG.md, README.md, etc.
+
+# 4. Push and create pull request
+git push -u origin v0.2.0-dev
+# Create detailed PR with feature documentation
+
+# 5. After thorough review and approval
+git checkout main
+git pull origin main
+
+# 6. Release new minor version
+./scripts/release.sh  # Creates v0.2.0 tag, publishes to crates.io
+```
+
+### Example: Major Release (Breaking Changes)
+```bash
+# 1. Create major version development branch
+./scripts/bump-version.sh major  # Creates v1.0.0-dev branch
+
+# 2. Implement breaking changes
+# - Modify APIs
+# - Restructure modules  
+# - Update error handling
+
+# 3. Comprehensive testing and documentation
+# - Update all documentation
+# - Add migration guides
+# - Update examples
+
+# 4. Push development branch
+git push -u origin v1.0.0-dev
+
+# 5. Create detailed PR with breaking changes documentation
+# Include:
+# - Migration guide
+# - Breaking changes list
+# - Updated examples
+
+# 6. After extensive review and team approval
+git checkout main
+git pull origin main
+
+# 7. Release major version
+./scripts/release.sh  # Creates v1.0.0 tag, publishes to crates.io
+```
+
+## 🛡️ Security & Quality Assurance
+
+### Pre-Release Validation
+- ✅ All tests pass (`cargo test --all-features`)
+- ✅ Code builds successfully (`cargo build --release --all-features`)
+- ✅ Package validates (`cargo publish --dry-run`)
+- ✅ Documentation is updated and accurate
+- ✅ CHANGELOG.md reflects all changes
+
+### Branch Protection Strategy
+- 🔒 Main branch requires pull request reviews
+- 🔒 Development branches cannot directly merge to main
+- 🔒 Release script enforces main branch requirement
+- 🔒 Tags can only be created from main branch
+- 🔒 No force pushes allowed to main
+
+### Publication Safety
+- 🔐 Manual confirmation required before publishing
+- 🔐 Comprehensive validation before release
+- 🔐 Immutable releases (cannot delete from crates.io)
+- 🔐 Clear audit trail via git tags and commits
+- 🔐 Rollback strategy for emergency situations
+
+## 🔄 Emergency Procedures
+
+### Emergency Hotfix
+```bash
+# 1. Create hotfix from latest release tag
+git checkout v0.1.4
+git checkout -b v0.1.5-dev
+
+# 2. Apply minimal fix
+git add .
+git commit -m "Emergency fix for security vulnerability"
+
+# 3. Fast-track review process
+git push -u origin v0.1.5-dev
+# Create urgent PR with security team review
+
+# 4. After approval, release immediately
+git checkout main
+git pull origin main
+./scripts/release.sh
+```
+
+### Version Rollback
+```bash
+# If a release has issues, create a new patch version
+# Cannot delete from crates.io, must release new version
+./scripts/bump-version.sh patch
+# Fix issues and release new version
+```
+
+This workflow ensures maximum security, quality, and control over all releases while maintaining a clear audit trail and preventing accidental deployments.
 
 ⚠️ **Major Version Workflow:**
 1. Creates a development branch (e.g., `v1.0.0-dev`)
