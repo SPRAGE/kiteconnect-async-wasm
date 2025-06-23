@@ -170,3 +170,4 @@
 extern crate mockito;
 
 pub mod connect;
+pub mod models;
