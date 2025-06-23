@@ -106,16 +106,21 @@ if ! git show-ref --verify --quiet "refs/heads/v$version"; then
     read -p "Create version branch v$version? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        # Store current branch
-        current_branch=$(git branch --show-current)
+        # Store current branch (handle both current branch and detached HEAD)
+        current_branch=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD)
         
         # Create the version branch from current state
         git checkout -b "v$version"
         print_info "Created version branch v$version"
         
-        # Switch back to original branch
-        git checkout "$current_branch"
-        print_info "Switched back to $current_branch"
+        # Switch back to original branch (handle both branch names and commit hashes)
+        if git show-ref --verify --quiet "refs/heads/$current_branch"; then
+            git checkout "$current_branch"
+            print_info "Switched back to $current_branch"
+        else
+            print_warning "Could not switch back to $current_branch (might be detached HEAD)"
+            print_info "You are now on version branch v$version"
+        fi
     fi
 else
     print_info "Version branch v$version already exists"
