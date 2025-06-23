@@ -101,6 +101,26 @@ if ! git diff --quiet CHANGELOG.md; then
     fi
 fi
 
+# Create version branch if it doesn't exist
+if ! git show-ref --verify --quiet "refs/heads/v$version"; then
+    read -p "Create version branch v$version? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # Store current branch
+        current_branch=$(git branch --show-current)
+        
+        # Create the version branch from current state
+        git checkout -b "v$version"
+        print_info "Created version branch v$version"
+        
+        # Switch back to original branch
+        git checkout "$current_branch"
+        print_info "Switched back to $current_branch"
+    fi
+else
+    print_info "Version branch v$version already exists"
+fi
+
 # Create and push tag
 print_info "Creating tag v$version"
 git tag -a "v$version" -m "Release version $version"
@@ -111,9 +131,26 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     git push origin "v$version"
     print_info "Tag pushed. Release workflow should start automatically."
     print_info "Check GitHub Actions: https://github.com/SPRAGE/kiteconnect-async-wasm/actions"
+    
+    # Also offer to push the version branch
+    if git show-ref --verify --quiet "refs/heads/v$version"; then
+        read -p "Also push version branch v$version? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            git push origin "v$version"
+            print_info "Version branch v$version pushed."
+        else
+            print_info "Version branch not pushed. Push manually with:"
+            print_info "git push origin v$version"
+        fi
+    fi
 else
     print_info "Tag created locally. Push manually with:"
     print_info "git push origin v$version"
+    if git show-ref --verify --quiet "refs/heads/v$version"; then
+        print_info "Version branch created locally. Push manually with:"
+        print_info "git push origin v$version"
+    fi
 fi
 
 print_info "Release creation complete!"

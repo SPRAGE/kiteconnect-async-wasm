@@ -120,6 +120,25 @@ fi
 
 git commit -m "Bump version to $new_version"
 
+# Create version branch
+read -p "Create version branch v$new_version? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    # Store current branch
+    current_branch=$(git branch --show-current)
+    
+    # Create the version branch from current state
+    git checkout -b "v$new_version"
+    print_info "Created version branch v$new_version"
+    
+    # Switch back to original branch
+    git checkout "$current_branch"
+    print_info "Switched back to $current_branch"
+else
+    print_info "Version branch not created. You can create it manually later with:"
+    print_info "git checkout -b v$new_version"
+fi
+
 # Create tag
 read -p "Create git tag v$new_version? (y/N): " -n 1 -r
 echo
@@ -129,6 +148,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     print_info "To trigger release, push the tag:"
     print_info "git push origin v$new_version"
+    
+    if git show-ref --verify --quiet "refs/heads/v$new_version"; then
+        print_info "To push the version branch:"
+        print_info "git push origin v$new_version"
+    fi
 else
     print_info "Tag not created. You can create it manually later with:"
     print_info "git tag v$new_version"
@@ -136,3 +160,6 @@ fi
 
 print_info "Version bump complete!"
 print_info "Don't forget to update CHANGELOG.md and push your changes"
+if git show-ref --verify --quiet "refs/heads/v$new_version"; then
+    print_info "Version branch v$new_version created and ready to push"
+fi
