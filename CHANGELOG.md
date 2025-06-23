@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2025-06-24
+
+### Changed
+- **Major Refactoring**: Split monolithic `connect.rs` file (2,134 lines) into modular structure
+  - Created focused modules: `auth.rs`, `portfolio.rs`, `orders.rs`, `market_data.rs`, `mutual_funds.rs`, `utils.rs`
+  - Added `models` module for future data structure definitions
+  - Improved code organization and maintainability
+  - All existing functionality preserved with no breaking changes
+  - Enhanced documentation and examples throughout modules
+
+### Technical
+- Fixed compilation errors and import issues across all modules
+- Cleaned up unused imports and optimized module structure
+- All tests continue to pass (4/4 unit tests, 27/27 doc tests)
+- Better separation of concerns and single responsibility principle
+
 ## [0.1.3] - 2025-06-15
 
 ### Added
