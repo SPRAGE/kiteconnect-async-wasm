@@ -193,40 +193,40 @@ jobs:
           else
             echo "No specific release notes found for version $VERSION in CHANGELOG.md"
             echo "Creating default release notes..."
-            cat > release_notes.txt << EOF
-## Release v$VERSION
-
-This release was automatically created when version $VERSION was merged to the main branch.
-
-### What's Changed
-- Version updated to $VERSION in Cargo.toml
-
-### Installation
-Add this to your \`Cargo.toml\`:
-\`\`\`toml
-[dependencies]
-kiteconnect-async-wasm = "$VERSION"
-\`\`\`
-
-For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/).
-EOF
+            {
+              echo "## Release v$VERSION"
+              echo ""
+              echo "This release was automatically created when version $VERSION was merged to the main branch."
+              echo ""
+              echo "### What's Changed"
+              echo "- Version updated to $VERSION in Cargo.toml"
+              echo ""
+              echo "### Installation"
+              echo "Add this to your \`Cargo.toml\`:"
+              echo "\`\`\`toml"
+              echo "[dependencies]"
+              echo "kiteconnect-async-wasm = \"$VERSION\""
+              echo "\`\`\`"
+              echo ""
+              echo "For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/)."
+            } > release_notes.txt
           fi
         else
           echo "No CHANGELOG.md found, creating default release notes..."
-          cat > release_notes.txt << EOF
-## Release v$VERSION
-
-This release was automatically created when version $VERSION was merged to the main branch.
-
-### Installation
-Add this to your \`Cargo.toml\`:
-\`\`\`toml
-[dependencies]
-kiteconnect-async-wasm = "$VERSION"
-\`\`\`
-
-For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/).
-EOF
+          {
+            echo "## Release v$VERSION"
+            echo ""
+            echo "This release was automatically created when version $VERSION was merged to the main branch."
+            echo ""
+            echo "### Installation"
+            echo "Add this to your \`Cargo.toml\`:"
+            echo "\`\`\`toml"
+            echo "[dependencies]"
+            echo "kiteconnect-async-wasm = \"$VERSION\""
+            echo "\`\`\`"
+            echo ""
+            echo "For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/)."
+          } > release_notes.txt
         fi
         
         echo "Final release notes:"
