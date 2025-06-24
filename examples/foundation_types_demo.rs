@@ -1,5 +1,5 @@
 /*!
-Test example to verify the v1.0.0 foundation models are working correctly.
+Foundation Types Demo
 
 This example demonstrates:
 - Importing the new typed models
@@ -11,7 +11,7 @@ This example demonstrates:
 use kiteconnect_async_wasm::models::prelude::*;
 
 fn main() {
-    println!("=== KiteConnect v1.0.0 Foundation Models Test ===");
+    println!("=== KiteConnect v1.0.2 Foundation Models Demo ===");
     
     // Test error types
     test_error_types();

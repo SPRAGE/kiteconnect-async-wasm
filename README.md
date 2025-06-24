@@ -1,4 +1,4 @@
-# KiteConnect Async WASM v1.0.0
+# KiteConnect Async WASM v1.0.2
 
 > ⚠️ **IMPORTANT DISCLAIMER** ⚠️
 > 
@@ -20,7 +20,7 @@
 
 A production-ready, high-performance Rust library for KiteConnect API integration featuring both legacy and strongly-typed APIs.
 
-## 🚀 Features v1.0.0
+## 🚀 Features v1.0.2
 
 - ✅ **Dual API Support** - Legacy JSON + new strongly-typed APIs
 - ✅ **Automatic Retry Logic** with exponential backoff
@@ -30,6 +30,7 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 - ✅ **Thread-Safe Design** with connection pooling
 - ✅ **Comprehensive Documentation** with migration guide
 - ✅ **Backward Compatibility** - all existing code continues to work
+- ✅ **Automated Releases** - CI/CD with automated publishing
 
 ## 🎯 Quick Start
 
@@ -37,10 +38,10 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 
 ```toml
 [dependencies]
-kiteconnect-async-wasm = { version = "1.0.0", features = ["native"] }
+kiteconnect-async-wasm = { version = "1.0.2", features = ["native"] }
 
 # For WASM targets
-# kiteconnect-async-wasm = { version = "1.0.0", features = ["wasm"] }
+# kiteconnect-async-wasm = { version = "1.0.2", features = ["wasm"] }
 ```
 
 ### Basic Usage (Legacy API - Backward Compatible)
@@ -67,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### New Typed API (Recommended for v1.0.0)
+### New Typed API (Recommended for v1.0.2)
 
 ```rust
 use kiteconnect_async_wasm::connect::KiteConnect;
@@ -354,6 +355,25 @@ cargo test --test integration_tests
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+### Automated Release Process
+
+This repository uses automated releases:
+
+- **Version Management**: Use `./scripts/bump-version.sh [patch|minor|major|VERSION]` to create release branches
+- **Automated Publishing**: When PRs are merged to `main`, GitHub Actions automatically:
+  - Creates git tags
+  - Publishes to crates.io
+  - Generates GitHub releases
+- **Documentation**: See [`AUTOMATED_RELEASES.md`](AUTOMATED_RELEASES.md) for detailed workflow information
+
+```bash
+# Example: Bump to next patch version
+./scripts/bump-version.sh patch
+
+# Example: Bump to specific version  
+./scripts/bump-version.sh 1.0.3
+```
+
 ## 📄 License
 
 This project is released under the [Unlicense](http://unlicense.org/) - see the [LICENSE](LICENSE) file for details.
@@ -367,7 +387,7 @@ This is an unofficial library. Use at your own risk. Not affiliated with Zerodha
 - [Official KiteConnect Documentation](https://kite.trade/docs/connect/v3/)
 - [API Reference](https://docs.rs/kiteconnect-async-wasm)
 - [Crates.io](https://crates.io/crates/kiteconnect-async-wasm)
-- [GitHub Repository](https://github.com/username/kiteconnect-async-wasm)
+- [GitHub Repository](https://github.com/SPRAGE/kiteconnect-async-wasm)
 
 ---
 
