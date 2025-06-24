@@ -40,6 +40,10 @@ When you need to bump a version:
 
 # For specific version
 ./scripts/bump-version.sh 2.1.0
+
+# OR use the new release preparation script
+./scripts/release.sh           # Uses current Cargo.toml version
+./scripts/release.sh 2.1.0     # Uses specified version
 ```
 
 **What happens:**
@@ -83,19 +87,25 @@ git push -u origin v{VERSION}-dev
 After merging to main:
 
 ```bash
-# Switch to main and run release script
+# Switch to main and run tag creation script
 git checkout main
 git pull origin main
-./scripts/release.sh
+./scripts/create-tag.sh
 ```
 
-**Release Script Actions:**
+**Tag Creation Script Actions:**
 - ✅ Verifies you're on main branch
 - ✅ Runs comprehensive tests
 - ✅ Validates package can build and publish
 - ✅ Creates git tag `v{VERSION}`
-- ✅ Publishes to crates.io
 - ✅ Pushes tag to origin
+- 🤖 **GitHub Actions automatically triggered**
+
+**GitHub Actions Workflow (Automated):**
+- ✅ Runs tests on the tagged commit
+- ✅ Verifies version consistency
+- ✅ Publishes to crates.io
+- ✅ Creates GitHub release with release notes
 
 ## 📊 Version Types
 
@@ -131,24 +141,36 @@ Features:
 - ✅ Prevents accidental main branch changes
 
 ### release.sh  
-**Handles releases ONLY from main branch**
+**Prepares development branches and creates PRs**
+
+Features:
+- 🚀 **Creates or switches to development branch**: `v{VERSION}-dev`
+- 🔧 **Updates version**: Automatically updates Cargo.toml if needed
+- 🧪 **Comprehensive validation**: Tests, builds, publish dry-run
+- 📤 **GitHub integration**: Pushes branch and provides PR creation guidance
+- 🛡️ **Safety checks**: Multiple validation steps before pushing
+- 🤖 **PR templates**: Provides detailed PR description templates
+
+### create-tag.sh  
+**Handles tag creation ONLY from main branch (Post-PR-merge)**
 
 Features:
 - 🔒 **Main branch enforcement**: Only works on main/master
-- 🧪 **Comprehensive validation**: Tests, builds, publish dry-run
+- 🧪 **Final validation**: Tests, builds, publish dry-run
 - 🏷️ **Tag creation**: Creates annotated git tags
-- 📦 **Crate publishing**: Publishes to crates.io
-- 🛡️ **Safety checks**: Multiple confirmation steps
+- 📤 **Automatic trigger**: Pushes tag to trigger GitHub Actions
+- 🤖 **Hands-off publishing**: GitHub Actions handles crates.io publishing
 
 ## 🚨 Important Safeguards
 
 ### Automatic Protections
 - ✅ **Branch Protection**: Development branches cannot auto-merge to main
-- ✅ **Main Branch Only**: Release script only works on main/master branch
+- ✅ **Main Branch Only**: Tag creation script only works on main/master branch
 - ✅ **Duplicate Prevention**: Cannot create tags that already exist
 - ✅ **Test Validation**: All tests must pass before release
 - ✅ **Build Verification**: Package must build successfully
 - ✅ **Publish Validation**: Dry-run validation before actual publishing
+- 🤖 **GitHub Actions**: Automated publishing with additional safety checks
 
 ### Manual Checkpoints
 - 🔍 **Code Review**: All changes reviewed in pull requests
@@ -160,29 +182,29 @@ Features:
 
 ### Example: Patch Release (Bug Fix)
 ```bash
-# 1. Create development branch
-./scripts/bump-version.sh patch  # Creates v0.1.5-dev branch
+# 1. Create development branch and prepare release
+./scripts/release.sh patch  # Creates v0.1.5-dev branch, updates version, runs tests
 
-# 2. Fix bugs on the development branch
+# 2. Fix bugs on the development branch (if needed)
 git add .
 git commit -m "Fix critical API timeout issue"
 
-# 3. Push and create pull request
-git push -u origin v0.1.5-dev
-# Create PR: v0.1.5-dev → main
+# 3. Branch is automatically pushed to GitHub with PR guidance
 
-# 4. After PR review and approval, merge to main
+# 4. Create PR via GitHub UI: v0.1.5-dev → main
+
+# 5. After PR review and approval, merge to main
 git checkout main
 git pull origin main
 
-# 5. Release from main branch
-./scripts/release.sh  # Creates tag, publishes to crates.io
+# 6. Create release tag to trigger automated publishing
+./scripts/create-tag.sh  # Creates tag, GitHub Actions publishes to crates.io
 ```
 
 ### Example: Minor Release (New Features)
 ```bash
-# 1. Create development branch  
-./scripts/bump-version.sh minor  # Creates v0.2.0-dev branch
+# 1. Create development branch and prepare release
+./scripts/release.sh minor  # Creates v0.2.0-dev branch, updates version
 
 # 2. Add new features
 git add .
@@ -191,22 +213,22 @@ git commit -m "Add new trading indicators API"
 # 3. Update documentation
 # Edit CHANGELOG.md, README.md, etc.
 
-# 4. Push and create pull request
-git push -u origin v0.2.0-dev
-# Create detailed PR with feature documentation
+# 4. Branch is automatically pushed with PR creation guidance
 
-# 5. After thorough review and approval
+# 5. Create detailed PR with feature documentation
+
+# 6. After thorough review and approval
 git checkout main
 git pull origin main
 
-# 6. Release new minor version
-./scripts/release.sh  # Creates v0.2.0 tag, publishes to crates.io
+# 7. Create tag to trigger automated release
+./scripts/create-tag.sh  # GitHub Actions handles publishing
 ```
 
 ### Example: Major Release (Breaking Changes)
 ```bash
 # 1. Create major version development branch
-./scripts/bump-version.sh major  # Creates v1.0.0-dev branch
+./scripts/release.sh major  # Creates v1.0.0-dev branch, updates version
 
 # 2. Implement breaking changes
 # - Modify APIs
@@ -218,8 +240,7 @@ git pull origin main
 # - Add migration guides
 # - Update examples
 
-# 4. Push development branch
-git push -u origin v1.0.0-dev
+# 4. Branch is automatically pushed with detailed PR guidance
 
 # 5. Create detailed PR with breaking changes documentation
 # Include:
@@ -231,8 +252,8 @@ git push -u origin v1.0.0-dev
 git checkout main
 git pull origin main
 
-# 7. Release major version
-./scripts/release.sh  # Creates v1.0.0 tag, publishes to crates.io
+# 7. Create major version tag
+./scripts/create-tag.sh  # GitHub Actions publishes v1.0.0 automatically
 ```
 
 ## 🛡️ Security & Quality Assurance
@@ -252,8 +273,9 @@ git pull origin main
 - 🔒 No force pushes allowed to main
 
 ### Publication Safety
-- 🔐 Manual confirmation required before publishing
-- 🔐 Comprehensive validation before release
+- 🔐 Manual confirmation required before tag creation
+- 🔐 Comprehensive validation before tag push
+- 🤖 GitHub Actions handles actual publishing with additional checks
 - 🔐 Immutable releases (cannot delete from crates.io)
 - 🔐 Clear audit trail via git tags and commits
 - 🔐 Rollback strategy for emergency situations
@@ -264,31 +286,80 @@ git pull origin main
 ```bash
 # 1. Create hotfix from latest release tag
 git checkout v0.1.4
-git checkout -b v0.1.5-dev
+./scripts/release.sh 0.1.5  # Creates v0.1.5-dev branch
 
 # 2. Apply minimal fix
 git add .
 git commit -m "Emergency fix for security vulnerability"
 
 # 3. Fast-track review process
-git push -u origin v0.1.5-dev
-# Create urgent PR with security team review
+# Branch is automatically pushed to GitHub
 
-# 4. After approval, release immediately
+# 4. Create urgent PR with security team review
+
+# 5. After approval, create tag immediately
 git checkout main
 git pull origin main
-./scripts/release.sh
+./scripts/create-tag.sh  # GitHub Actions handles emergency publishing
 ```
 
 ### Version Rollback
 ```bash
 # If a release has issues, create a new patch version
 # Cannot delete from crates.io, must release new version
-./scripts/bump-version.sh patch
-# Fix issues and release new version
+./scripts/release.sh patch
+# Fix issues, create PR, merge, then create tag for automated publishing
 ```
 
 This workflow ensures maximum security, quality, and control over all releases while maintaining a clear audit trail and preventing accidental deployments.
+
+## 🤖 GitHub Actions Integration
+
+The new workflow leverages GitHub Actions for automated publishing, providing additional safety and consistency:
+
+### Automated Release Pipeline
+
+1. **Developer creates development branch**: `./scripts/release.sh`
+2. **PR creation and review**: Manual process with team oversight
+3. **PR merge to main**: After approval and testing
+4. **Tag creation**: `./scripts/create-tag.sh` (manual trigger on main)
+5. **GitHub Actions triggered**: Automatic publishing pipeline
+
+### GitHub Actions Workflow Features
+
+- **Comprehensive Testing**: Runs full test suite on tagged commit
+- **Version Validation**: Ensures Cargo.toml version matches git tag
+- **Build Verification**: Confirms package builds successfully
+- **Dry Run Publishing**: Validates package before actual publish
+- **Automatic crates.io Publishing**: Uses stored CARGO_REGISTRY_TOKEN
+- **GitHub Release Creation**: Automatically creates GitHub release with CHANGELOG.md extraction
+- **Error Handling**: Proper error reporting and rollback procedures
+
+### Benefits of GitHub Actions Integration
+
+- 🛡️ **Consistent Environment**: All releases built in identical CI environment
+- 🤖 **Reduced Human Error**: Automated process eliminates manual publishing mistakes
+- 🔍 **Audit Trail**: Complete history of release actions in GitHub Actions logs
+- 🔒 **Secure Token Management**: API tokens stored securely in GitHub Secrets
+- 📋 **Standardized Process**: Every release follows identical validation steps
+- ⚡ **Fast Publishing**: Immediate publishing after tag creation
+- 🔄 **Reliable Rollback**: Clear process for handling failed releases
+
+### Script Responsibilities
+
+| Script | Purpose | Triggers | Output |
+|--------|---------|----------|---------|
+| `bump-version.sh` | Version bumping | Manual | Development branch |
+| `release.sh` | Release preparation | Manual | Development branch + GitHub push |
+| `create-tag.sh` | Tag creation | Manual (post-merge) | Git tag + GitHub Actions trigger |
+| GitHub Actions | Publishing | Tag push | crates.io + GitHub release |
+
+This separation of concerns ensures that:
+- Development work is isolated in branches
+- All changes go through PR review
+- Publishing is automated and consistent
+- Manual oversight is maintained where needed
+- Emergency procedures remain available
 
 ⚠️ **Major Version Workflow:**
 1. Creates a development branch (e.g., `v1.0.0-dev`)
