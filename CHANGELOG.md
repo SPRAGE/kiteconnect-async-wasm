@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2025-06-24
+
+- 🔧 Patch version bump to 0.1.9
+- 🔧 Fix async trait warning and cleanup codebase
+
+
 ## [0.1.8] - 2025-06-24
 
 ### Changed
