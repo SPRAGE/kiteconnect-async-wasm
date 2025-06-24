@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
 # Script to create release tags on main branch after PR merge
-# This script should ONLY be run on the main branch after merging development branches
+# 
+# ⚠️  NOTE: With the new GitHub Actions workflow, this script is typically NOT needed!
+# ⚠️  The GitHub workflow automatically creates tags when version changes are merged to main.
+# 
+# This script should ONLY be used for manual tag creation in special circumstances.
+# Normal release process: Update version in Cargo.toml → Create PR → Merge → Automatic release
+# 
 # Usage: ./create-tag.sh [version] or just ./create-tag.sh to use Cargo.toml version
 
 set -e
@@ -12,6 +18,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Function to print colored output
@@ -34,6 +41,28 @@ print_release() {
 print_tag() {
     echo -e "${CYAN}[TAG]${NC} $1"
 }
+
+print_automation() {
+    echo -e "${PURPLE}[AUTOMATION]${NC} $1"
+}
+
+# Display automation notice
+echo
+print_automation "🤖 AUTOMATED RELEASE WORKFLOW AVAILABLE"
+print_automation "========================================"
+print_info "The repository now has automated releases via GitHub Actions!"
+print_info "Normal process: Update Cargo.toml version → Create PR → Merge → Auto-release"
+echo
+print_warning "This manual script should only be used in special circumstances."
+print_warning "Are you sure you want to create a manual tag instead of using automation?"
+echo
+read -p "Continue with manual tag creation? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    print_info "Cancelled. Use the automated workflow by updating Cargo.toml version."
+    exit 0
+fi
+echo
 
 # Check if we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then

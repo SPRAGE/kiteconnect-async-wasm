@@ -2,32 +2,65 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Allow manual trigger
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check-version:
+    name: Check if version changed
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version-check.outputs.version }}
+      version-changed: ${{ steps.version-check.outputs.version-changed }}
+      tag-exists: ${{ steps.version-check.outputs.tag-exists }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history to check previous versions
+    
+    - name: Check version and tag
+      id: version-check
+      run: |
+        # Get current version from Cargo.toml
+        CURRENT_VERSION=$(grep "^version" Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+        
+        # Check if tag already exists
+        if git tag | grep -q "^v$CURRENT_VERSION$"; then
+          echo "tag-exists=true" >> $GITHUB_OUTPUT
+          echo "Tag v$CURRENT_VERSION already exists"
+          echo "version-changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "tag-exists=false" >> $GITHUB_OUTPUT
+          echo "Tag v$CURRENT_VERSION does not exist"
+          
+          # Check if this is a version change by comparing with previous commit
+          # Get version from previous commit (if it exists)
+          PREV_VERSION=""
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            PREV_VERSION=$(git show HEAD~1:Cargo.toml | grep "^version" | sed 's/version = "\(.*\)"/\1/' || echo "")
+          fi
+          
+          if [ -z "$PREV_VERSION" ] || [ "$CURRENT_VERSION" != "$PREV_VERSION" ]; then
+            echo "version-changed=true" >> $GITHUB_OUTPUT
+            echo "Version changed from '$PREV_VERSION' to '$CURRENT_VERSION'"
+          else
+            echo "version-changed=false" >> $GITHUB_OUTPUT
+            echo "Version unchanged: $CURRENT_VERSION"
+          fi
+        fi
+
   test:
     name: Test Before Release
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Run tests
-      run: cargo test --features native
-
-    - name: Run doc tests
-      run: cargo test --doc --features native
-
-  publish:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    needs: test
+    needs: check-version
+    if: needs.check-version.outputs.version-changed == 'true' && needs.check-version.outputs.tag-exists == 'false'
     steps:
     - uses: actions/checkout@v4
     
@@ -37,19 +70,73 @@ jobs:
     - name: Cache cargo registry
       uses: actions/cache@v4
       with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Run tests
+      run: cargo test --all-features
+
+    - name: Run doc tests
+      run: cargo test --doc --all-features
+      
+    - name: Verify build
+      run: cargo build --release --all-features
+
+  create-tag:
+    name: Create Git Tag
+    runs-on: ubuntu-latest
+    needs: [check-version, test]
+    if: needs.check-version.outputs.version-changed == 'true' && needs.check-version.outputs.tag-exists == 'false'
+    outputs:
+      tag: v${{ needs.check-version.outputs.version }}
+    steps:
+    - uses: actions/checkout@v4
     
-    - name: Verify version matches tag
+    - name: Create and push tag
       run: |
-        CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-        TAG_VERSION=${GITHUB_REF#refs/tags/v}
-        echo "Cargo version: $CARGO_VERSION"
-        echo "Tag version: $TAG_VERSION"
-        if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
-          echo "Version mismatch between Cargo.toml ($CARGO_VERSION) and tag ($TAG_VERSION)"
-          exit 1
-        fi
+        VERSION="${{ needs.check-version.outputs.version }}"
+        TAG="v$VERSION"
+        
+        echo "Creating tag: $TAG"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        git tag -a "$TAG" -m "Release version $VERSION
+
+        🚀 Automated release created from version in Cargo.toml
+        
+        This release was automatically created when the version in Cargo.toml 
+        was updated to $VERSION and merged to the main branch."
+        
+        git push origin "$TAG"
+        echo "Tag $TAG created and pushed successfully"
+
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [check-version, create-tag]
+    if: needs.check-version.outputs.version-changed == 'true' && needs.check-version.outputs.tag-exists == 'false'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
     
     - name: Dry run publish
       run: cargo publish --dry-run
@@ -63,54 +150,120 @@ jobs:
           echo "Please add your crates.io API token as a GitHub secret named 'CARGO_REGISTRY_TOKEN'"
           exit 1
         fi
-        echo "Publishing to crates.io..."
+        echo "Publishing version ${{ needs.check-version.outputs.version }} to crates.io..."
         cargo publish --token "$CARGO_REGISTRY_TOKEN"
 
   github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: publish
+    needs: [check-version, create-tag, publish]
+    if: needs.check-version.outputs.version-changed == 'true' && needs.check-version.outputs.tag-exists == 'false'
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for changelog generation
     
     - name: Extract release notes
       id: extract-release-notes
       run: |
-        # Extract version from tag
-        VERSION=${GITHUB_REF#refs/tags/v}
+        VERSION="${{ needs.check-version.outputs.version }}"
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         
         # Try to extract release notes from CHANGELOG.md if it exists
         if [ -f CHANGELOG.md ]; then
+          echo "Extracting release notes from CHANGELOG.md for version $VERSION"
+          
           # Extract the section for this version
           awk -v version="$VERSION" '
-            /^## \[/ { 
+            /^## / { 
               if (found) exit
-              if ($0 ~ version) found=1
+              if ($0 ~ version) {
+                found=1
+                next
+              }
               next
             }
-            found && /^## \[/ { exit }
-            found { print }
+            found && /^## / { exit }
+            found && !/^[[:space:]]*$/ { print }
           ' CHANGELOG.md > release_notes.txt
           
           if [ -s release_notes.txt ]; then
-            echo "Found release notes in CHANGELOG.md"
+            echo "Found release notes in CHANGELOG.md:"
             cat release_notes.txt
           else
-            echo "No release notes found for version $VERSION in CHANGELOG.md"
-            echo "Release version $VERSION" > release_notes.txt
+            echo "No specific release notes found for version $VERSION in CHANGELOG.md"
+            echo "Creating default release notes..."
+            cat > release_notes.txt << EOF
+## Release v$VERSION
+
+This release was automatically created when version $VERSION was merged to the main branch.
+
+### What's Changed
+- Version updated to $VERSION in Cargo.toml
+
+### Installation
+Add this to your \`Cargo.toml\`:
+\`\`\`toml
+[dependencies]
+kiteconnect-async-wasm = "$VERSION"
+\`\`\`
+
+For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/).
+EOF
           fi
         else
-          echo "Release version $VERSION" > release_notes.txt
+          echo "No CHANGELOG.md found, creating default release notes..."
+          cat > release_notes.txt << EOF
+## Release v$VERSION
+
+This release was automatically created when version $VERSION was merged to the main branch.
+
+### Installation
+Add this to your \`Cargo.toml\`:
+\`\`\`toml
+[dependencies]
+kiteconnect-async-wasm = "$VERSION"
+\`\`\`
+
+For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/).
+EOF
         fi
+        
+        echo "Final release notes:"
+        cat release_notes.txt
     
     - name: Create GitHub Release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ steps.extract-release-notes.outputs.version }}
+        tag_name: v${{ needs.check-version.outputs.version }}
+        release_name: Release v${{ needs.check-version.outputs.version }}
         body_path: release_notes.txt
         draft: false
         prerelease: false
+
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [check-version, github-release]
+    if: always()
+    steps:
+    - name: Print summary
+      run: |
+        echo "🏷️  Release Summary"
+        echo "=================="
+        echo "Version: ${{ needs.check-version.outputs.version }}"
+        echo "Version changed: ${{ needs.check-version.outputs.version-changed }}"
+        echo "Tag exists: ${{ needs.check-version.outputs.tag-exists }}"
+        
+        if [ "${{ needs.check-version.outputs.version-changed }}" == "true" ] && [ "${{ needs.check-version.outputs.tag-exists }}" == "false" ]; then
+          echo "✅ Release v${{ needs.check-version.outputs.version }} created successfully!"
+          echo "🚀 Published to crates.io"
+          echo "📋 GitHub release created"
+          echo "🏷️  Git tag v${{ needs.check-version.outputs.version }} created"
+        elif [ "${{ needs.check-version.outputs.tag-exists }}" == "true" ]; then
+          echo "ℹ️  Tag v${{ needs.check-version.outputs.version }} already exists, skipping release"
+        else
+          echo "ℹ️  Version unchanged, no release needed"
+        fi
