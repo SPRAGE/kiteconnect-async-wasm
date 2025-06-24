@@ -1,6 +1,6 @@
-//! # Phase 8 Connect Integration Example
+//! # Dual API Support Example
 //! 
-//! This example demonstrates the new dual API support introduced in Phase 8,
+//! This example demonstrates the dual API support (legacy + typed),
 //! including typed methods, retry logic, and enhanced error handling.
 
 use kiteconnect_async_wasm::connect::{KiteConnect, KiteConnectConfig, RetryConfig};
@@ -8,7 +8,7 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== KiteConnect v1.0.0 Dual API Example ===\n");
+    println!("=== KiteConnect v1.0.2 Dual API Example ===\n");
 
     // Example 1: Basic client with default configuration
     println!("1. Creating basic KiteConnect client...");
