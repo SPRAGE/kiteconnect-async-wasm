@@ -50,6 +50,10 @@ use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use reqwest::header::{HeaderMap, AUTHORIZATION, USER_AGENT};
 
+// WASM platform imports  
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use web_sys::console;
+
 // Import sub-modules
 pub mod utils;
 pub mod auth;
@@ -251,47 +255,48 @@ impl KiteConnect {
 
 /// Implement the async request handler for KiteConnect struct
 impl RequestHandler for KiteConnect {
-    async fn send_request(
+    fn send_request(
         &self,
         url: reqwest::Url,
         method: &str,
         data: Option<HashMap<&str, &str>>,
-    ) -> Result<reqwest::Response> {
-        #[cfg(feature = "debug")]
-        log::debug!("Sending {} request to: {}", method, url);
-        
-        #[cfg(all(feature = "debug", feature = "wasm"))]
-        console::log_1(&format!("KiteConnect: {} {}", method, url).into());
+    ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send {
+        async move {
+            #[cfg(feature = "debug")]
+            log::debug!("Sending {} request to: {}", method, url);
+            
+            #[cfg(all(feature = "debug", feature = "wasm", target_arch = "wasm32"))]
+            console::log_1(&format!("KiteConnect: {} {}", method, url).into());
 
-        let mut headers = HeaderMap::new();
-        headers.insert("XKiteVersion", "3".parse().unwrap());
-        headers.insert(
-            AUTHORIZATION,
-            format!("token {}:{}", self.api_key, self.access_token)
-                .parse()
-                .unwrap(),
-        );
-        headers.insert(USER_AGENT, "Rust".parse().unwrap());
+            let mut headers = HeaderMap::new();
+            headers.insert("XKiteVersion", "3".parse().unwrap());
+            headers.insert(
+                AUTHORIZATION,
+                format!("token {}:{}", self.api_key, self.access_token)
+                    .parse()
+                    .unwrap(),
+            );
+            headers.insert(USER_AGENT, "Rust".parse().unwrap());
 
-        let response = match method {
-            "GET" => self.client.get(url).headers(headers).send().await?,
-            "POST" => self.client.post(url).headers(headers).form(&data).send().await?,
-            "DELETE" => self.client.delete(url).headers(headers).json(&data).send().await?,
-            "PUT" => self.client.put(url).headers(headers).form(&data).send().await?,
-            _ => return Err(anyhow!("Unknown method!")),
-        };
+            let response = match method {
+                "GET" => self.client.get(url).headers(headers).send().await?,
+                "POST" => self.client.post(url).headers(headers).form(&data).send().await?,
+                "DELETE" => self.client.delete(url).headers(headers).json(&data).send().await?,
+                "PUT" => self.client.put(url).headers(headers).form(&data).send().await?,
+                _ => return Err(anyhow!("Unknown method!")),
+            };
 
-        #[cfg(feature = "debug")]
-        log::debug!("Response status: {}", response.status());
+            #[cfg(feature = "debug")]
+            log::debug!("Response status: {}", response.status());
 
-        Ok(response)
+            Ok(response)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockito::{Server, Matcher};
 
     #[tokio::test]
     async fn test_build_url() {

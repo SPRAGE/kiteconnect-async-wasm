@@ -3,7 +3,7 @@
 //! This module contains market data methods for the KiteConnect API.
 
 use serde_json::Value as JsonValue;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use crate::connect::utils::RequestHandler;
 
 // Native platform imports

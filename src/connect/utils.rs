@@ -29,12 +29,12 @@ pub const URL: &str = "http://127.0.0.1:1234";
 
 /// Async trait for handling HTTP requests across different platforms
 pub trait RequestHandler {
-    async fn send_request(
+    fn send_request(
         &self,
         url: reqwest::Url,
         method: &str,
         data: Option<HashMap<&str, &str>>,
-    ) -> Result<reqwest::Response>;
+    ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send;
 }
 
 /// Parse CSV data using csv-core for WASM compatibility
