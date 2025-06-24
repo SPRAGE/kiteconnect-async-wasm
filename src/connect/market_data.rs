@@ -4,7 +4,7 @@
 
 use serde_json::Value as JsonValue;
 use anyhow::Result;
-use crate::connect::utils::RequestHandler;
+use crate::connect::endpoints::KiteEndpoint;
 
 // Native platform imports
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
@@ -14,7 +14,13 @@ use crate::connect::KiteConnect;
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use crate::connect::utils::parse_csv_with_core;
 
+// Import typed models for dual API support
+use crate::models::common::KiteResult;
+use crate::models::market_data::{Quote, OHLC, LTP, HistoricalData};
+
 impl KiteConnect {
+    // === LEGACY API METHODS (JSON responses) ===
+    
     /// Get the trigger range for a list of instruments
     pub async fn trigger_range(
         &self,
@@ -28,21 +34,50 @@ impl KiteConnect {
             params.push(("instruments", instrument));
         }
 
-        let url = self.build_url("/instruments/trigger_range", Some(params));
-        let resp = self.send_request(url, "GET", None).await?;
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::TriggerRange, 
+            &[],
+            Some(params),
+            None
+        ).await.map_err(|e| anyhow::anyhow!("Get trigger range failed: {:?}", e))?;
         self.raise_or_return_json(resp).await
     }
 
     /// Get instruments list
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
-        let url: reqwest::Url = if let Some(exchange) = exchange {
-            self.build_url(&format!("/instruments/{}", exchange), None)
+        // Check cache first if enabled
+        if let Some(ref cache_config) = self.cache_config {
+            if cache_config.enable_instruments_cache && exchange.is_none() {
+                // Only cache the full instruments list, not exchange-specific ones
+                if let Ok(cache_guard) = self.response_cache.lock() {
+                    if let Some(ref cache) = *cache_guard {
+                        if let Some(cached_data) = cache.get_instruments() {
+                            return Ok(cached_data);
+                        }
+                    }
+                }
+            }
+        }
+
+        let endpoint = if exchange.is_some() {
+            KiteEndpoint::Instruments
         } else {
-            self.build_url("/instruments", None)
+            KiteEndpoint::Instruments
         };
 
-        let resp = self.send_request(url, "GET", None).await?;
+        let path_segments = if let Some(exchange) = exchange {
+            vec![exchange]
+        } else {
+            vec![]
+        };
+
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            endpoint, 
+            &path_segments,
+            None,
+            None
+        ).await.map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
         let body = resp.text().await?;
         
         // Parse CSV response
@@ -62,30 +97,85 @@ impl KiteConnect {
             result.push(JsonValue::Object(obj));
         }
         
-        Ok(JsonValue::Array(result))
+        let result_json = JsonValue::Array(result);
+
+        // Cache the result if enabled and it's the full instruments list
+        if let Some(ref cache_config) = self.cache_config {
+            if cache_config.enable_instruments_cache && exchange.is_none() {
+                if let Ok(mut cache_guard) = self.response_cache.lock() {
+                    if let Some(ref mut cache) = *cache_guard {
+                        cache.set_instruments(result_json.clone());
+                    }
+                }
+            }
+        }
+        
+        Ok(result_json)
     }
 
     /// Get instruments list (WASM version - now parses CSV using csv-core)
     #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
     pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
-        let url: reqwest::Url = if let Some(exchange) = exchange {
-            self.build_url(&format!("/instruments/{}", exchange), None)
+        // Check cache first if enabled
+        if let Some(ref cache_config) = self.cache_config {
+            if cache_config.enable_instruments_cache && exchange.is_none() {
+                // Only cache the full instruments list, not exchange-specific ones
+                if let Ok(cache_guard) = self.response_cache.lock() {
+                    if let Some(ref cache) = *cache_guard {
+                        if let Some(cached_data) = cache.get_instruments() {
+                            return Ok(cached_data);
+                        }
+                    }
+                }
+            }
+        }
+
+        let endpoint = if exchange.is_some() {
+            KiteEndpoint::Instruments
         } else {
-            self.build_url("/instruments", None)
+            KiteEndpoint::Instruments
         };
 
-        let resp = self.send_request(url, "GET", None).await?;
+        let path_segments = if let Some(exchange) = exchange {
+            vec![exchange]
+        } else {
+            vec![]
+        };
+
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            endpoint, 
+            &path_segments,
+            None,
+            None
+        ).await.map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
         let body = resp.text().await?;
         
         // Parse CSV using csv-core for WASM compatibility
-        parse_csv_with_core(&body)
+        let result = parse_csv_with_core(&body)?;
+
+        // Cache the result if enabled and it's the full instruments list
+        if let Some(ref cache_config) = self.cache_config {
+            if cache_config.enable_instruments_cache && exchange.is_none() {
+                if let Ok(mut cache_guard) = self.response_cache.lock() {
+                    if let Some(ref mut cache) = *cache_guard {
+                        cache.set_instruments(result.clone());
+                    }
+                }
+            }
+        }
+        
+        Ok(result)
     }
 
     /// Get mutual fund instruments list
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub async fn mf_instruments(&self) -> Result<JsonValue> {
-        let url = self.build_url("/mf/instruments", None);
-        let resp = self.send_request(url, "GET", None).await?;
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::MFInstruments, 
+            &[],
+            None,
+            None
+        ).await.map_err(|e| anyhow::anyhow!("Get MF instruments failed: {:?}", e))?;
         let body = resp.text().await?;
         
         // Parse CSV response
@@ -111,8 +201,12 @@ impl KiteConnect {
     /// Get mutual fund instruments list (WASM version - now parses CSV using csv-core)
     #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
     pub async fn mf_instruments(&self) -> Result<JsonValue> {
-        let url = self.build_url("/mf/instruments", None);
-        let resp = self.send_request(url, "GET", None).await?;
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::MFInstruments, 
+            &[],
+            None,
+            None
+        ).await.map_err(|e| anyhow::anyhow!("Get MF instruments failed: {:?}", e))?;
         let body = resp.text().await?;
         
         // Parse CSV using csv-core for WASM compatibility
@@ -221,12 +315,13 @@ impl KiteConnect {
         params.push(("to", to_date));
         params.push(("continuous", continuous));
         
-        let url = self.build_url(
-            &format!("/instruments/historical/{}/{}", instrument_token, interval),
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::HistoricalData, 
+            &[instrument_token, interval],
             Some(params),
-        );
+            None
+        ).await.map_err(|e| anyhow::anyhow!("Get historical data failed: {:?}", e))?;
 
-        let resp = self.send_request(url, "GET", None).await?;
         self.raise_or_return_json(resp).await
     }
 
@@ -265,8 +360,12 @@ impl KiteConnect {
     /// ```
     pub async fn quote(&self, instruments: Vec<&str>) -> Result<JsonValue> {
         let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
-        let url = self.build_url("/quote", Some(params));
-        let resp = self.send_request(url, "GET", None).await?;
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::Quote, 
+            &[],
+            Some(params),
+            None
+        ).await.map_err(|e| anyhow::anyhow!("Get quote failed: {:?}", e))?;
         self.raise_or_return_json(resp).await
     }
 
@@ -300,8 +399,14 @@ impl KiteConnect {
     /// ```
     pub async fn ohlc(&self, instruments: Vec<&str>) -> Result<JsonValue> {
         let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
-        let url = self.build_url("/quote/ohlc", Some(params));
-        let resp = self.send_request(url, "GET", None).await?;
+        
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::OHLC,
+            &[],
+            Some(params),
+            None,
+        ).await.map_err(|e| anyhow::anyhow!("Failed to get OHLC data: {}", e))?;
+        
         self.raise_or_return_json(resp).await
     }
 
@@ -336,8 +441,14 @@ impl KiteConnect {
     /// ```
     pub async fn ltp(&self, instruments: Vec<&str>) -> Result<JsonValue> {
         let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
-        let url = self.build_url("/quote/ltp", Some(params));
-        let resp = self.send_request(url, "GET", None).await?;
+        
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::LTP,
+            &[],
+            Some(params),
+            None,
+        ).await.map_err(|e| anyhow::anyhow!("Failed to get LTP data: {}", e))?;
+        
         self.raise_or_return_json(resp).await
     }
 
@@ -369,8 +480,221 @@ impl KiteConnect {
     /// # }
     /// ```
     pub async fn instruments_margins(&self, segment: &str) -> Result<JsonValue> {
-        let url = self.build_url(&format!("/margins/{}", segment), None);
-        let resp = self.send_request(url, "GET", None).await?;
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::MarketMargins,
+            &[segment],
+            None,
+            None,
+        ).await.map_err(|e| anyhow::anyhow!("Failed to get instrument margins: {}", e))?;
+        
         self.raise_or_return_json(resp).await
+    }
+
+    // === TYPED API METHODS (v1.0.0) ===
+    
+    /// Get real-time quotes with typed response
+    /// 
+    /// Returns strongly typed quote data instead of JsonValue.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instruments` - List of instrument identifiers
+    /// 
+    /// # Returns
+    /// 
+    /// A `KiteResult<Vec<Quote>>` containing typed quote data
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let instruments = vec!["NSE:RELIANCE", "BSE:SENSEX"];
+    /// let quotes = client.quote_typed(instruments).await?;
+    /// for quote in quotes {
+    ///     println!("Symbol: {}, LTP: {}", quote.trading_symbol, quote.last_price);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn quote_typed(&self, instruments: Vec<&str>) -> KiteResult<Vec<Quote>> {
+        let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
+        
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::Quote,
+            &[],
+            Some(params),
+            None,
+        ).await?;
+        
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        
+        // Extract the data field from response
+        let data = json_response["data"].clone();
+        self.parse_response(data)
+    }
+
+    /// Get OHLC data with typed response
+    /// 
+    /// Returns strongly typed OHLC data instead of JsonValue.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instruments` - List of instrument identifiers
+    /// 
+    /// # Returns
+    /// 
+    /// A `KiteResult<Vec<OHLC>>` containing typed OHLC data
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let instruments = vec!["NSE:RELIANCE", "NSE:TCS"];
+    /// let ohlc_data = client.ohlc_typed(instruments).await?;
+    /// for ohlc in ohlc_data {
+    ///     println!("Open: {}, High: {}, Low: {}, Close: {}", 
+    ///         ohlc.open, ohlc.high, ohlc.low, ohlc.close);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn ohlc_typed(&self, instruments: Vec<&str>) -> KiteResult<Vec<OHLC>> {
+        let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
+        
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::OHLC,
+            &[],
+            Some(params),
+            None,
+        ).await?;
+        
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        
+        // Extract the data field from response
+        let data = json_response["data"].clone();
+        self.parse_response(data)
+    }
+
+    /// Get Last Traded Price (LTP) with typed response
+    /// 
+    /// Returns strongly typed LTP data instead of JsonValue.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instruments` - List of instrument identifiers
+    /// 
+    /// # Returns
+    /// 
+    /// A `KiteResult<Vec<LTP>>` containing typed LTP data
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let instruments = vec!["NSE:RELIANCE", "NSE:TCS"];
+    /// let ltp_data = client.ltp_typed(instruments).await?;
+    /// for ltp in ltp_data {
+    ///     println!("Token: {}, LTP: {}", ltp.instrument_token, ltp.last_price);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn ltp_typed(&self, instruments: Vec<&str>) -> KiteResult<Vec<LTP>> {
+        let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
+        
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::LTP,
+            &[],
+            Some(params),
+            None,
+        ).await?;
+        
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        
+        // Extract the data field from response
+        let data = json_response["data"].clone();
+        self.parse_response(data)
+    }
+
+    /// Get historical data with typed response
+    /// 
+    /// Returns strongly typed historical data instead of JsonValue.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instrument_token` - The instrument token
+    /// * `from_date` - Start date in YYYY-MM-DD format
+    /// * `to_date` - End date in YYYY-MM-DD format
+    /// * `interval` - Time interval for candlesticks
+    /// * `continuous` - Whether to include continuous data
+    /// 
+    /// # Returns
+    /// 
+    /// A `KiteResult<HistoricalData>` containing typed historical data
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let historical_data = client.historical_data_typed(
+    ///     "738561",           // RELIANCE instrument token
+    ///     "2023-11-01",       // From date
+    ///     "2023-11-30",       // To date
+    ///     "day",              // Daily interval
+    ///     "0"                 // No continuous data
+    /// ).await?;
+    /// 
+    /// for candle in &historical_data.candles {
+    ///     println!("Date: {}, Close: {}, Volume: {}", 
+    ///         candle.date, candle.close, candle.volume);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn historical_data_typed(
+        &self,
+        instrument_token: &str,
+        from_date: &str,
+        to_date: &str,
+        interval: &str,
+        continuous: &str,
+    ) -> KiteResult<HistoricalData> {
+        let mut params = Vec::new();
+        params.push(("from", from_date));
+        params.push(("to", to_date));
+        params.push(("continuous", continuous));
+        
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::HistoricalData,
+            &[instrument_token, interval],
+            Some(params),
+            None,
+        ).await?;
+        
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        
+        // Extract the data field from response
+        let data = json_response["data"].clone();
+        self.parse_response(data)
     }
 }

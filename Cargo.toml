@@ -1,6 +1,6 @@
 [package]
 name = "kiteconnect-async-wasm"
-version = "0.1.9"
+version = "1.0.0"
 authors = ["SPRAGE <shauna.pai@gmail.com>"]
 description = "Modern async Rust client for KiteConnect REST APIs with WASM support. Clean, well-documented, and focused on REST-only operations."
 license = "Unlicense"
@@ -29,6 +29,10 @@ url = "2.5.4"
 log = { version = "0.4", optional = true }
 async-trait = "0.1.88"
 hex = "0.4"
+
+# v1.0.0 dependencies for typed models
+thiserror = "2.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 # Native-specific dependencies (controlled by 'native' feature)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

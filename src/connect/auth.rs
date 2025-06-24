@@ -5,7 +5,11 @@
 use serde_json::Value as JsonValue;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
-use crate::connect::utils::RequestHandler;
+use crate::connect::endpoints::KiteEndpoint;
+
+// Import typed models for dual API support
+use crate::models::common::KiteResult;
+use crate::models::auth::{SessionData, UserProfile};
 
 // Native platform imports
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
@@ -24,6 +28,8 @@ use wasm_bindgen_futures::JsFuture;
 use crate::connect::KiteConnect;
 
 impl KiteConnect {
+    // === LEGACY API METHODS (JSON responses) ===
+    
     /// Generates the KiteConnect login URL for user authentication
     /// 
     /// This URL should be opened in a browser to allow the user to log in to their
@@ -50,7 +56,7 @@ impl KiteConnect {
     /// 
     /// 1. Generate login URL with this method
     /// 2. Direct user to the URL in a browser
-    /// 3. User completes login and is redirected with `request_token`
+    /// 3. User completes login and is redirected with `request_token` parameter
     /// 4. Use `generate_session()` with the request token to get access token
     pub fn login_url(&self) -> String {
         format!("https://kite.trade/connect/login?api_key={}&v3", self.api_key)
@@ -160,8 +166,12 @@ impl KiteConnect {
         data.insert("request_token", request_token);
         data.insert("checksum", checksum.as_str());
 
-        let url = self.build_url("/session/token", None);
-        let resp = self.send_request(url, "POST", Some(data)).await?;
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::GenerateSession, 
+            &[],
+            None,
+            Some(data)
+        ).await.map_err(|e| anyhow!("Generate session failed: {:?}", e))?;
 
         if resp.status().is_success() {
             let jsn: JsonValue = resp.json().await?;
@@ -175,11 +185,15 @@ impl KiteConnect {
 
     /// Invalidates the access token
     pub async fn invalidate_access_token(&self, access_token: &str) -> Result<reqwest::Response> {
-        let url = self.build_url("/session/token", None);
         let mut data = HashMap::new();
         data.insert("access_token", access_token);
 
-        self.send_request(url, "DELETE", Some(data)).await
+        self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::InvalidateSession, 
+            &[],
+            None,
+            Some(data)
+        ).await.map_err(|e| anyhow!("Invalidate access token failed: {:?}", e))
     }
 
     /// Request for new access token
@@ -198,8 +212,12 @@ impl KiteConnect {
         data.insert("access_token", access_token);
         data.insert("checksum", checksum.as_str());
 
-        let url = self.build_url("/session/refresh_token", None);
-        let resp = self.send_request(url, "POST", Some(data)).await?;
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::RenewAccessToken, 
+            &[],
+            None,
+            Some(data)
+        ).await.map_err(|e| anyhow!("Renew access token failed: {:?}", e))?;
 
         if resp.status().is_success() {
             let jsn: JsonValue = resp.json().await?;
@@ -213,10 +231,94 @@ impl KiteConnect {
 
     /// Invalidates the refresh token
     pub async fn invalidate_refresh_token(&self, refresh_token: &str) -> Result<reqwest::Response> {
-        let url = self.build_url("/session/refresh_token", None);
         let mut data = HashMap::new();
         data.insert("refresh_token", refresh_token);
 
-        self.send_request(url, "DELETE", Some(data)).await
+        self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::InvalidateRefreshToken, 
+            &[],
+            None,
+            Some(data)
+        ).await.map_err(|e| anyhow!("Invalidate refresh token failed: {:?}", e))
+    }
+
+    // === TYPED API METHODS (v1.0.0) ===
+    
+    /// Generates session with typed response
+    /// 
+    /// Returns strongly typed session data instead of JsonValue.
+    /// This is the preferred method for new applications.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request_token` - The request token received after user login
+    /// * `api_secret` - Your KiteConnect API secret
+    /// 
+    /// # Returns
+    /// 
+    /// A `KiteResult<SessionData>` containing typed session information
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut client = KiteConnect::new("your_api_key", "");
+    /// 
+    /// let session = client.generate_session_typed("request_token", "api_secret").await?;
+    /// println!("Access token: {}", session.access_token);
+    /// println!("User ID: {}", session.user_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn generate_session_typed(
+        &mut self,
+        request_token: &str,
+        api_secret: &str,
+    ) -> KiteResult<SessionData> {
+        let json_response = self.generate_session(request_token, api_secret).await
+            .map_err(|e| crate::models::common::KiteError::Legacy(e))?;
+        
+        // Extract the data field from response
+        let data = json_response["data"].clone();
+        self.parse_response(data)
+    }
+
+    /// Get user profile with typed response
+    /// 
+    /// Returns strongly typed user profile data instead of JsonValue.
+    /// 
+    /// # Returns
+    /// 
+    /// A `KiteResult<UserProfile>` containing typed user profile information
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let profile = client.profile_typed().await?;
+    /// println!("User: {} ({})", profile.user_name, profile.email);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn profile_typed(&self) -> KiteResult<UserProfile> {
+        let resp = self.send_request_with_rate_limiting_and_retry(
+            KiteEndpoint::Profile, 
+            &[],
+            None,
+            None
+        ).await?;
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        
+        // Extract the data field from response
+        let data = json_response["data"].clone();
+        self.parse_response(data)
     }
 }

@@ -49,6 +49,16 @@ use serde_json::Value as JsonValue;
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use reqwest::header::{HeaderMap, AUTHORIZATION, USER_AGENT};
+use std::sync::{Arc, atomic::AtomicU64};
+use std::time::Duration;
+use serde::de::DeserializeOwned;
+
+// Import our typed models
+use crate::models::common::{KiteError, KiteResult};
+
+// Cache imports
+use std::sync::Mutex;
+use std::time::{SystemTime, Duration as StdDuration};
 
 // WASM platform imports  
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
@@ -61,9 +71,108 @@ pub mod portfolio;
 pub mod orders;
 pub mod market_data;
 pub mod mutual_funds;
+pub mod gtt;
+pub mod endpoints;
+pub mod rate_limiter;
 
 // Re-export commonly used utilities
 pub use utils::{RequestHandler, URL};
+pub use endpoints::{KiteEndpoint, HttpMethod, RateLimitCategory, Endpoint};
+pub use rate_limiter::{RateLimiter, RateLimiterStats, CategoryStats};
+
+/// Configuration for retry behavior
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    pub max_retries: u32,
+    pub base_delay: Duration,
+    pub max_delay: Duration,
+    pub exponential_backoff: bool,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            base_delay: Duration::from_millis(200),
+            max_delay: Duration::from_secs(5),
+            exponential_backoff: true,
+        }
+    }
+}
+
+/// Configuration for response caching
+#[derive(Debug, Clone)]
+pub struct CacheConfig {
+    pub enable_instruments_cache: bool,
+    pub cache_ttl_minutes: u64,
+    pub max_cache_size: usize,
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self {
+            enable_instruments_cache: true,
+            cache_ttl_minutes: 60, // 1 hour
+            max_cache_size: 1000,
+        }
+    }
+}
+
+/// Simple in-memory cache for API responses
+#[derive(Debug)]
+struct ResponseCache {
+    instruments_cache: Option<(JsonValue, SystemTime)>,
+    ttl_minutes: u64,
+}
+
+impl ResponseCache {
+    fn new(ttl_minutes: u64) -> Self {
+        Self {
+            instruments_cache: None,
+            ttl_minutes,
+        }
+    }
+
+    fn get_instruments(&self) -> Option<JsonValue> {
+        if let Some((data, timestamp)) = &self.instruments_cache {
+            let elapsed = timestamp.elapsed().ok()?;
+            if elapsed < StdDuration::from_secs(self.ttl_minutes * 60) {
+                return Some(data.clone());
+            }
+        }
+        None
+    }
+
+    fn set_instruments(&mut self, data: JsonValue) {
+        self.instruments_cache = Some((data, SystemTime::now()));
+    }
+}
+
+/// Configuration for KiteConnect client
+#[derive(Debug, Clone)]
+pub struct KiteConnectConfig {
+    pub base_url: String,
+    pub timeout: u64,
+    pub retry_config: RetryConfig,
+    pub cache_config: Option<CacheConfig>,
+    pub max_idle_connections: usize,
+    pub idle_timeout: u64,
+    pub enable_rate_limiting: bool,
+}
+
+impl Default for KiteConnectConfig {
+    fn default() -> Self {
+        Self {
+            base_url: "https://api.kite.trade".to_string(),
+            timeout: 30,
+            retry_config: RetryConfig::default(),
+            cache_config: Some(CacheConfig::default()),
+            max_idle_connections: 10,
+            idle_timeout: 30,
+            enable_rate_limiting: true,
+        }
+    }
+}
 
 /// Main client for interacting with the KiteConnect API
 /// 
@@ -123,10 +232,26 @@ pub struct KiteConnect {
     pub(crate) api_key: String,
     /// Access token for authenticated requests
     pub(crate) access_token: String,
+    /// Base URL for API requests
+    pub(crate) root: String,
+    /// Request timeout in seconds
+    pub(crate) timeout: u64,
     /// Optional callback for session expiry handling
     pub(crate) session_expiry_hook: Option<fn() -> ()>,
     /// HTTP client for making requests (shared and reusable)
     pub(crate) client: reqwest::Client,
+    
+    // New fields for v1.0.0
+    /// Retry configuration for failed requests
+    pub(crate) retry_config: RetryConfig,
+    /// Cache configuration for response caching
+    pub(crate) cache_config: Option<CacheConfig>,
+    /// Request counter for debugging and monitoring
+    pub(crate) request_counter: Arc<AtomicU64>,
+    /// Response cache for performance optimization
+    pub(crate) response_cache: Arc<Mutex<Option<ResponseCache>>>,
+    /// Rate limiter for API compliance
+    pub(crate) rate_limiter: rate_limiter::RateLimiter,
 }
 
 impl Default for KiteConnect {
@@ -134,8 +259,15 @@ impl Default for KiteConnect {
         KiteConnect {
             api_key: "<API-KEY>".to_string(),
             access_token: "<ACCESS-TOKEN>".to_string(),
+            root: URL.to_string(),
+            timeout: 30,
             session_expiry_hook: None,
             client: reqwest::Client::new(),
+            retry_config: RetryConfig::default(),
+            cache_config: Some(CacheConfig::default()),
+            request_counter: Arc::new(AtomicU64::new(0)),
+            response_cache: Arc::new(Mutex::new(None)),
+            rate_limiter: rate_limiter::RateLimiter::new(true),
         }
     }
 }
@@ -143,7 +275,7 @@ impl Default for KiteConnect {
 impl KiteConnect {
     /// Constructs url for the given path and query params
     pub(crate) fn build_url(&self, path: &str, param: Option<Vec<(&str, &str)>>) -> reqwest::Url {
-        let url: &str = &format!("{}/{}", URL, &path[1..]);
+        let url: &str = &format!("{}/{}", self.root, &path[1..]);
         let mut url = reqwest::Url::parse(url).unwrap();
 
         if let Some(data) = param {
@@ -174,8 +306,67 @@ impl KiteConnect {
         Self {
             api_key: api_key.to_string(),
             access_token: access_token.to_string(),
+            root: URL.to_string(),
+            timeout: 30,
+            session_expiry_hook: None,
             client: reqwest::Client::new(),
-            ..Default::default()
+            retry_config: RetryConfig::default(),
+            cache_config: Some(CacheConfig::default()),
+            request_counter: Arc::new(AtomicU64::new(0)),
+            response_cache: Arc::new(Mutex::new(None)),
+            rate_limiter: rate_limiter::RateLimiter::new(true),
+        }
+    }
+
+    /// Creates a new KiteConnect client with custom configuration
+    /// 
+    /// # Arguments
+    /// 
+    /// * `api_key` - Your KiteConnect API key
+    /// * `config` - Configuration for the client
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use kiteconnect_async_wasm::connect::{KiteConnect, KiteConnectConfig, RetryConfig};
+    /// use std::time::Duration;
+    /// 
+    /// let config = KiteConnectConfig {
+    ///     retry_config: RetryConfig {
+    ///         max_retries: 5,
+    ///         base_delay: Duration::from_millis(100),
+    ///         ..Default::default()
+    ///     },
+    ///     ..Default::default()
+    /// };
+    /// 
+    /// let mut client = KiteConnect::new_with_config("your_api_key", config);
+    /// client.set_access_token("your_access_token");
+    /// ```
+    pub fn new_with_config(api_key: &str, config: KiteConnectConfig) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(config.timeout))
+            .pool_max_idle_per_host(config.max_idle_connections)
+            .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
+            .user_agent(&format!("kiteconnect-rust/{}", env!("CARGO_PKG_VERSION")))
+            .build()
+            .expect("Failed to create HTTP client");
+            
+        Self {
+            api_key: api_key.to_string(),
+            access_token: String::new(),
+            root: config.base_url,
+            timeout: config.timeout,
+            session_expiry_hook: None,
+            client,
+            retry_config: config.retry_config,
+            cache_config: config.cache_config.clone(),
+            request_counter: Arc::new(AtomicU64::new(0)),
+            response_cache: Arc::new(Mutex::new(
+                config.cache_config.as_ref()
+                    .map(|c| ResponseCache::new(c.cache_ttl_minutes))
+            )),
+            rate_limiter: rate_limiter::RateLimiter::new(config.enable_rate_limiting),
         }
     }
 
@@ -185,8 +376,117 @@ impl KiteConnect {
             let jsn: JsonValue = resp.json().await.with_context(|| "Serialization failed")?;
             Ok(jsn)
         } else {
+            let status_code = resp.status().as_u16();
+            let status = status_code.to_string();
             let error_text = resp.text().await?;
-            Err(anyhow!(error_text))
+            
+            // Try to parse as JSON to extract error details
+            if let Ok(error_json) = serde_json::from_str::<JsonValue>(&error_text) {
+                let message = error_json["message"].as_str()
+                    .unwrap_or(&error_text)
+                    .to_string();
+                let error_type = error_json["error_type"].as_str()
+                    .map(|s| s.to_string());
+                
+                let kite_error = KiteError::from_api_response(status_code, status, message, error_type);
+                Err(anyhow::Error::new(kite_error))
+            } else {
+                let kite_error = KiteError::from_api_response(status_code, status, error_text, None);
+                Err(anyhow::Error::new(kite_error))
+            }
+        }
+    }
+
+    /// Send request with retry logic and enhanced error handling
+    pub(crate) async fn send_request_with_retry(
+        &self,
+        url: reqwest::Url,
+        method: &str,
+        data: Option<HashMap<&str, &str>>,
+    ) -> KiteResult<reqwest::Response> {
+        let mut last_error = None;
+        
+        for attempt in 0..=self.retry_config.max_retries {
+            // Increment request counter
+            self.request_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            
+            match self.send_request(url.clone(), method, data.clone()).await {
+                Ok(response) => {
+                    // Check if response indicates an error that should be retried
+                    if response.status().is_server_error() || response.status() == 429 {
+                        let status = response.status().as_u16().to_string();
+                        let error_text = response.text().await
+                            .unwrap_or_else(|_| "Unknown server error".to_string());
+                        
+                        let error = KiteError::Api {
+                            status,
+                            message: error_text,
+                            error_type: Some("ServerError".to_string()),
+                        };
+                        
+                        if attempt < self.retry_config.max_retries && self.should_retry(&error) {
+                            last_error = Some(error);
+                            let delay = self.calculate_retry_delay(attempt);
+                            
+                            #[cfg(feature = "debug")]
+                            log::debug!("Request failed, retrying in {:?}. Attempt {}/{}", 
+                                delay, attempt + 1, self.retry_config.max_retries);
+                            
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        } else {
+                            return Err(error);
+                        }
+                    }
+                    
+                    return Ok(response);
+                }
+                Err(e) => {
+                    let kite_error = KiteError::Legacy(e);
+                    
+                    if attempt < self.retry_config.max_retries && self.should_retry(&kite_error) {
+                        last_error = Some(kite_error);
+                        let delay = self.calculate_retry_delay(attempt);
+                        
+                        #[cfg(feature = "debug")]
+                        log::debug!("Request failed, retrying in {:?}. Attempt {}/{}", 
+                            delay, attempt + 1, self.retry_config.max_retries);
+                        
+                        tokio::time::sleep(delay).await;
+                        continue;
+                    } else {
+                        return Err(kite_error);
+                    }
+                }
+            }
+        }
+        
+        // If we've exhausted all retries, return the last error
+        Err(last_error.unwrap_or_else(|| KiteError::General("All retry attempts failed".to_string())))
+    }
+
+    /// Enhanced JSON response handler with better error handling
+    pub(crate) async fn raise_or_return_json_typed(&self, resp: reqwest::Response) -> KiteResult<JsonValue> {
+        if resp.status().is_success() {
+            resp.json().await.map_err(|e| KiteError::Http(e))
+        } else {
+            let status_code = resp.status().as_u16();
+            let status = status_code.to_string();
+            let error_text = resp.text().await
+                .map_err(KiteError::Http)?;
+            
+            // Try to parse as JSON to extract error details
+            if let Ok(error_json) = serde_json::from_str::<JsonValue>(&error_text) {
+                let message = error_json["message"].as_str()
+                    .unwrap_or(&error_text)
+                    .to_string();
+                let error_type = error_json["error_type"].as_str()
+                    .map(|s| s.to_string());
+                
+                Err(KiteError::from_api_response(status_code, status, message, error_type))
+            } else {
+                Err(KiteError::from_api_response(status_code, status, error_text, None))
+            }
         }
     }
 
@@ -250,6 +550,90 @@ impl KiteConnect {
     /// Gets the access token for this instance
     pub fn access_token(&self) -> &str {
         &self.access_token
+    }
+
+    /// Internal helper method for parsing JSON responses to typed models
+    /// 
+    /// This method converts JsonValue responses from legacy API methods
+    /// into strongly typed model structs for the new typed API methods.
+    fn parse_response<T: DeserializeOwned>(&self, response: JsonValue) -> KiteResult<T> {
+        serde_json::from_value(response)
+            .map_err(|e| KiteError::Json(e))
+    }
+
+    /// Determines if a request should be retried based on the error type
+    fn should_retry(&self, error: &KiteError) -> bool {
+        error.is_retryable()
+    }
+
+    /// Calculates retry delay using exponential backoff or fixed delay
+    fn calculate_retry_delay(&self, attempt: u32) -> Duration {
+        if self.retry_config.exponential_backoff {
+            let delay = self.retry_config.base_delay * 2_u32.pow(attempt);
+            std::cmp::min(delay, self.retry_config.max_delay)
+        } else {
+            self.retry_config.base_delay
+        }
+    }
+
+    /// Gets the current request count for monitoring
+    pub fn request_count(&self) -> u64 {
+        self.request_counter.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Get rate limiter statistics for monitoring
+    pub async fn rate_limiter_stats(&self) -> rate_limiter::RateLimiterStats {
+        self.rate_limiter.get_stats().await
+    }
+
+    /// Enable or disable rate limiting
+    pub fn set_rate_limiting_enabled(&mut self, enabled: bool) {
+        self.rate_limiter.set_enabled(enabled);
+    }
+
+    /// Check if rate limiting is enabled
+    pub fn is_rate_limiting_enabled(&self) -> bool {
+        self.rate_limiter.is_enabled()
+    }
+
+    /// Check if a request can be made without waiting
+    pub async fn can_request_immediately(&self, endpoint: &KiteEndpoint) -> bool {
+        self.rate_limiter.can_request_immediately(endpoint).await
+    }
+
+    /// Get the delay required before making a request
+    pub async fn get_delay_for_request(&self, endpoint: &KiteEndpoint) -> std::time::Duration {
+        self.rate_limiter.get_delay_for_request(endpoint).await
+    }
+
+    /// Wait for rate limit compliance before making a request
+    pub async fn wait_for_request(&self, endpoint: &KiteEndpoint) {
+        self.rate_limiter.wait_for_request(endpoint).await
+    }
+
+    /// Send request with rate limiting and retry logic
+    async fn send_request_with_rate_limiting_and_retry(
+        &self,
+        endpoint: KiteEndpoint,
+        path_segments: &[&str],
+        query_params: Option<Vec<(&str, &str)>>,
+        data: Option<HashMap<&str, &str>>,
+    ) -> KiteResult<reqwest::Response> {
+        // Apply rate limiting
+        self.rate_limiter.wait_for_request(&endpoint).await;
+
+        // Build URL with endpoint configuration
+        let config = endpoint.config();
+        let full_path = if path_segments.is_empty() {
+            config.path.to_string()
+        } else {
+            format!("{}/{}", config.path, path_segments.join("/"))
+        };
+        
+        let url = self.build_url(&full_path, query_params);
+        
+        // Use existing retry logic
+        self.send_request_with_retry(url, config.method.as_str(), data).await
     }
 }
 
