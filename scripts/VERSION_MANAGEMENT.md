@@ -2,6 +2,25 @@
 
 This document outlines the **secure version management strategy** for kiteconnect-async-wasm.
 
+## 🤖 Automated Release System
+
+**NEW: Fully automated releases via GitHub Actions!**
+
+### Quick Start (Recommended)
+
+1. **Update version** in `Cargo.toml` (e.g., `1.0.1` → `1.0.2`)
+2. **Create PR** using `./scripts/release.sh 1.0.2` 
+3. **Merge PR** to main after review
+4. **GitHub Actions automatically**:
+   - ✅ Creates git tag `v1.0.2`
+   - ✅ Publishes to crates.io  
+   - ✅ Creates GitHub release
+   - ✅ Generates release notes
+
+**No manual tag creation needed!** The entire release process is automated.
+
+---
+
 ## 🔄 Secure Release Workflow
 
 **ALL version updates require manual approval before merging to main!**
