@@ -4,58 +4,64 @@ Session management data structures for KiteConnect authentication.
 Handles login responses, access tokens, and session validation.
 */
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Response from the `generate_session` API call
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionData {
-    /// Access token for API authentication
+    /// The unique, permanent user id registered with the broker and the exchanges
+    pub user_id: String,
+    
+    /// User's real name
+    pub user_name: String,
+    
+    /// Shortened version of the user's real name
+    pub user_shortname: String,
+    
+    /// User's email
+    pub email: String,
+    
+    /// User's registered role at the broker. This will be individual for all retail users
+    pub user_type: String,
+    
+    /// The broker ID
+    pub broker: String,
+    
+    /// Exchanges enabled for trading on the user's account
+    pub exchanges: Vec<String>,
+    
+    /// Margin product types enabled for the user
+    pub products: Vec<String>,
+    
+    /// Order types enabled for the user
+    pub order_types: Vec<String>,
+    
+    /// The API key for which the authentication was performed
+    pub api_key: String,
+    
+    /// The authentication token that's used with every subsequent request
+    /// Unless this is invalidated using the API, or invalidated by a master-logout 
+    /// from the Kite Web trading terminal, it'll expire at 6 AM on the next day (regulatory requirement)
     pub access_token: String,
     
-    /// Public token (if provided)
+    /// A token for public session validation where requests may be exposed to the public
     #[serde(default)]
     pub public_token: String,
     
-    /// Refresh token for token renewal
+    /// A token for getting long standing read permissions. This is only available to certain approved platforms
     #[serde(default)]
     pub refresh_token: String,
     
-    /// API key used for the session
-    pub api_key: String,
+    /// User's last login time
+    pub login_time: String,
     
-    /// User ID associated with the session
-    pub user_id: String,
-    
-    /// User short name/username
-    pub user_name: String,
-    
-    /// User type (e.g., "individual")
-    pub user_type: String,
-    
-    /// Avatar URL (optional)
-    #[serde(default)]
-    pub avatar_url: Option<String>,
-    
-    /// Broker identifier
-    pub broker: String,
-    
-    /// List of available exchanges for the user
-    pub exchanges: Vec<String>,
-    
-    /// List of available products for the user
-    pub products: Vec<String>,
-    
-    /// List of available order types for the user
-    pub order_types: Vec<String>,
-    
-    /// Session metadata (optional)
+    /// Session metadata containing demat_consent and other user metadata
     #[serde(default)]
     pub meta: Option<SessionMeta>,
     
-    /// Login time (auto-generated)
-    #[serde(default = "Utc::now")]
-    pub login_time: DateTime<Utc>,
+    /// Full URL to the user's avatar (PNG image) if there's one
+    #[serde(default)]
+    pub avatar_url: Option<String>,
 }
 
 /// Additional session metadata
@@ -210,20 +216,22 @@ mod tests {
     #[test]
     fn test_session_data_validation() {
         let mut session = SessionData {
-            access_token: "test_token".to_string(),
-            public_token: String::new(),
-            refresh_token: String::new(),
-            api_key: "test_key".to_string(),
             user_id: "test_user".to_string(),
             user_name: "Test User".to_string(),
+            user_shortname: "testuser".to_string(),
+            email: "test@example.com".to_string(),
             user_type: "individual".to_string(),
-            avatar_url: None,
             broker: "ZERODHA".to_string(),
             exchanges: vec!["NSE".to_string(), "BSE".to_string()],
             products: vec!["CNC".to_string(), "MIS".to_string()],
             order_types: vec!["MARKET".to_string(), "LIMIT".to_string()],
+            api_key: "test_key".to_string(),
+            access_token: "test_token".to_string(),
+            public_token: String::new(),
+            refresh_token: String::new(),
+            login_time: "2024-01-01 10:00:00".to_string(),
             meta: None,
-            login_time: Utc::now(),
+            avatar_url: None,
         };
         
         assert!(session.is_valid());
