@@ -5,7 +5,7 @@
 use serde_json::Value as JsonValue;
 use anyhow::Result;
 use std::collections::HashMap;
-use crate::connect::endpoints::KiteEndpoint;
+use crate::connect::utils::RequestHandler;
 
 // Import typed models for dual API support
 use crate::models::common::KiteResult;
@@ -53,12 +53,8 @@ impl KiteConnect {
         if let Some(trailing_stoploss) = trailing_stoploss { params.insert("trailing_stoploss", trailing_stoploss); }
         if let Some(tag) = tag { params.insert("tag", tag); }
 
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::PlaceOrder, 
-            &[variety],
-            None,
-            Some(params)
-        ).await.map_err(|e| anyhow::anyhow!("Place order failed: {:?}", e))?;
+        let url = self.build_url(&format!("/orders/{}", variety), None);
+        let resp = self.send_request(url, "POST", Some(params)).await?;
         self.raise_or_return_json(resp).await
     }
 
@@ -87,12 +83,8 @@ impl KiteConnect {
         if let Some(trigger_price) = trigger_price { params.insert("trigger_price", trigger_price); }
         if let Some(parent_order_id) = parent_order_id { params.insert("parent_order_id", parent_order_id); }
 
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::ModifyOrder, 
-            &[variety, order_id],
-            None,
-            Some(params)
-        ).await.map_err(|e| anyhow::anyhow!("Modify order failed: {:?}", e))?;
+        let url = self.build_url(&format!("/orders/{}/{}", variety, order_id), None);
+        let resp = self.send_request(url, "PUT", Some(params)).await?;
         self.raise_or_return_json(resp).await
     }
 
@@ -110,12 +102,8 @@ impl KiteConnect {
             params.insert("parent_order_id", parent_order_id);
         }
 
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::CancelOrder, 
-            &[variety, order_id],
-            None,
-            Some(params)
-        ).await.map_err(|e| anyhow::anyhow!("Cancel order failed: {:?}", e))?;
+        let url = self.build_url(&format!("/orders/{}/{}", variety, order_id), None);
+        let resp = self.send_request(url, "DELETE", Some(params)).await?;
         self.raise_or_return_json(resp).await
     }
 
@@ -174,46 +162,30 @@ impl KiteConnect {
     /// # }
     /// ```
     pub async fn orders(&self) -> Result<JsonValue> {
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::Orders, 
-            &[],
-            None,
-            None
-        ).await.map_err(|e| anyhow::anyhow!("Get orders failed: {:?}", e))?;
+        let url = self.build_url("/orders", None);
+        let resp = self.send_request(url, "GET", None).await?;
         self.raise_or_return_json(resp).await
     }
 
     /// Get the list of order history
     pub async fn order_history(&self, order_id: &str) -> Result<JsonValue> {
         let params = vec![("order_id", order_id)];
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::OrderHistory, 
-            &[],
-            Some(params),
-            None
-        ).await.map_err(|e| anyhow::anyhow!("Get order history failed: {:?}", e))?;
+        let url = self.build_url("/orders", Some(params));
+        let resp = self.send_request(url, "GET", None).await?;
         self.raise_or_return_json(resp).await
     }
 
     /// Get all trades
     pub async fn trades(&self) -> Result<JsonValue> {
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::Trades, 
-            &[],
-            None,
-            None
-        ).await.map_err(|e| anyhow::anyhow!("Get trades failed: {:?}", e))?;
+        let url = self.build_url("/trades", None);
+        let resp = self.send_request(url, "GET", None).await?;
         self.raise_or_return_json(resp).await
     }
 
     /// Get all trades for a specific order
     pub async fn order_trades(&self, order_id: &str) -> Result<JsonValue> {
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::OrderTrades, 
-            &[order_id],
-            None,
-            None
-        ).await.map_err(|e| anyhow::anyhow!("Get order trades failed: {:?}", e))?;
+        let url = self.build_url(&format!("/orders/{}/trades", order_id), None);
+        let resp = self.send_request(url, "GET", None).await?;
         self.raise_or_return_json(resp).await
     }
 
@@ -237,12 +209,8 @@ impl KiteConnect {
         params.insert("old_product", old_product);
         params.insert("new_product", new_product);
 
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::ConvertPosition, 
-            &[],
-            None,
-            Some(params)
-        ).await.map_err(|e| anyhow::anyhow!("Convert position failed: {:?}", e))?;
+        let url = self.build_url("/portfolio/positions", None);
+        let resp = self.send_request(url, "PUT", Some(params)).await?;
         self.raise_or_return_json(resp).await
     }
 
@@ -250,17 +218,16 @@ impl KiteConnect {
     
     /// Place an order with typed response
     /// 
-    /// Returns strongly typed order response instead of JsonValue.
+    /// Returns strongly typed order status data instead of JsonValue.
     /// This is the preferred method for new applications.
     /// 
     /// # Arguments
     /// 
-    /// * `variety` - Order variety ("regular", "bo", "co", etc.)
     /// * `order_params` - Typed order parameters struct
     /// 
     /// # Returns
     /// 
-    /// A `KiteResult<OrderResponse>` containing the order ID
+    /// A `KiteResult<OrderStatusData>` containing typed order status information
     /// 
     /// # Example
     /// 
@@ -274,7 +241,7 @@ impl KiteConnect {
     /// let client = KiteConnect::new("api_key", "access_token");
     /// 
     /// let params = OrderParams {
-    ///     trading_symbol: "INFY".to_string(),
+    ///     tradingsymbol: "INFY".to_string(),
     ///     exchange: Exchange::NSE,
     ///     transaction_type: TransactionType::BUY,
     ///     quantity: 1,
@@ -282,20 +249,11 @@ impl KiteConnect {
     ///     product: Product::CNC,
     ///     price: Some(1500.0),
     ///     validity: Some(Validity::DAY),
-    ///     disclosed_quantity: None,
-    ///     trigger_price: None,
-    ///     squareoff: None,
-    ///     stoploss: None,
-    ///     trailing_stoploss: None,
-    ///     market_protection: None,
-    ///     iceberg_legs: None,
-    ///     iceberg_quantity: None,
-    ///     auction_number: None,
-    ///     tag: None,
+    ///     ..Default::default()
     /// };
     /// 
-    /// let order_response = client.place_order_typed("regular", &params).await?;
-    /// println!("Order ID: {}", order_response.order_id);
+    /// let order_status = client.place_order_typed("regular", &params).await?;
+    /// println!("Order ID: {}", order_status.order_id);
     /// # Ok(())
     /// # }
     /// ```
@@ -304,49 +262,34 @@ impl KiteConnect {
         variety: &str,
         order_params: &OrderParams,
     ) -> KiteResult<OrderResponse> {
-        // Create all string conversions upfront to avoid lifetime issues
-        let exchange_str = order_params.exchange.to_string();
-        let transaction_type_str = order_params.transaction_type.to_string();
-        let quantity_str = order_params.quantity.to_string();
-        let product_str = order_params.product.to_string();
-        let order_type_str = order_params.order_type.to_string();
-        
-        let price_str = order_params.price.map(|p| p.to_string());
-        let validity_str = order_params.validity.as_ref().map(|v| v.to_string());
-        let disclosed_str = order_params.disclosed_quantity.map(|d| d.to_string());
-        let trigger_str = order_params.trigger_price.map(|t| t.to_string());
-        
+        // Convert typed params to HashMap for legacy API
         let mut params = HashMap::new();
         params.insert("variety", variety);
-        params.insert("exchange", exchange_str.as_str());
-        params.insert("tradingsymbol", order_params.trading_symbol.as_str());
-        params.insert("transaction_type", transaction_type_str.as_str());
-        params.insert("quantity", quantity_str.as_str());
-        params.insert("product", product_str.as_str());
-        params.insert("order_type", order_type_str.as_str());
+        params.insert("exchange", &order_params.exchange.to_string());
+        params.insert("tradingsymbol", &order_params.trading_symbol);
+        params.insert("transaction_type", &order_params.transaction_type.to_string());
+        params.insert("quantity", &order_params.quantity.to_string());
+        params.insert("product", &order_params.product.to_string());
+        params.insert("order_type", &order_params.order_type.to_string());
         
-        if let Some(ref price) = price_str {
-            params.insert("price", price.as_str());
+        if let Some(price) = order_params.price {
+            params.insert("price", &price.to_string());
         }
-        if let Some(ref validity) = validity_str {
-            params.insert("validity", validity.as_str());
+        if let Some(validity) = &order_params.validity {
+            params.insert("validity", &validity.to_string());
         }
-        if let Some(ref disclosed) = disclosed_str {
-            params.insert("disclosed_quantity", disclosed.as_str());
+        if let Some(disclosed_quantity) = order_params.disclosed_quantity {
+            params.insert("disclosed_quantity", &disclosed_quantity.to_string());
         }
-        if let Some(ref trigger) = trigger_str {
-            params.insert("trigger_price", trigger.as_str());
+        if let Some(trigger_price) = order_params.trigger_price {
+            params.insert("trigger_price", &trigger_price.to_string());
         }
-        if let Some(ref tag) = order_params.tag {
-            params.insert("tag", tag.as_str());
+        if let Some(tag) = &order_params.tag {
+            params.insert("tag", tag);
         }
 
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::PlaceOrder, 
-            &[variety],
-            None,
-            Some(params)
-        ).await?;
+        let url = self.build_url(&format!("/orders/{}", variety), None);
+        let resp = self.send_request_with_retry(url, "POST", Some(params)).await?;
         let json_response = self.raise_or_return_json_typed(resp).await?;
         
         // Extract the data field from response
@@ -382,12 +325,8 @@ impl KiteConnect {
     /// # }
     /// ```
     pub async fn orders_typed(&self) -> KiteResult<Vec<Order>> {
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::Orders, 
-            &[],
-            None,
-            None
-        ).await?;
+        let url = self.build_url("/orders", None);
+        let resp = self.send_request_with_retry(url, "GET", None).await?;
         let json_response = self.raise_or_return_json_typed(resp).await?;
         
         // Extract the data field from response
@@ -417,18 +356,14 @@ impl KiteConnect {
     ///     println!("Trade {}: {} @ {}", 
     ///         trade.trade_id, 
     ///         trade.quantity,
-    ///         trade.average_price);
+    ///         trade.price);
     /// }
     /// # Ok(())
     /// # }
     /// ```
     pub async fn trades_typed(&self) -> KiteResult<Vec<Trade>> {
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::Trades, 
-            &[],
-            None,
-            None
-        ).await?;
+        let url = self.build_url("/trades", None);
+        let resp = self.send_request_with_retry(url, "GET", None).await?;
         let json_response = self.raise_or_return_json_typed(resp).await?;
         
         // Extract the data field from response
@@ -459,18 +394,14 @@ impl KiteConnect {
     /// 
     /// let trades = client.order_trades_typed("order_id").await?;
     /// for trade in trades {
-    ///     println!("Trade executed: {} @ {}", trade.quantity, trade.average_price);
+    ///     println!("Trade executed: {} @ {}", trade.quantity, trade.price);
     /// }
     /// # Ok(())
     /// # }
     /// ```
     pub async fn order_trades_typed(&self, order_id: &str) -> KiteResult<Vec<Trade>> {
-        let resp = self.send_request_with_rate_limiting_and_retry(
-            KiteEndpoint::OrderTrades, 
-            &[order_id],
-            None,
-            None
-        ).await?;
+        let url = self.build_url(&format!("/orders/{}/trades", order_id), None);
+        let resp = self.send_request_with_retry(url, "GET", None).await?;
         let json_response = self.raise_or_return_json_typed(resp).await?;
         
         // Extract the data field from response
