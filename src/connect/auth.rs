@@ -184,16 +184,54 @@ impl KiteConnect {
     }
 
     /// Invalidates the access token
-    pub async fn invalidate_access_token(&self, access_token: &str) -> Result<reqwest::Response> {
-        let mut data = HashMap::new();
-        data.insert("access_token", access_token);
+    /// 
+    /// This call invalidates the access_token and destroys the API session. After this,
+    /// the user should be sent through a new login flow before further interactions.
+    /// This does not log the user out of the official Kite web or mobile applications.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `access_token` - The access token to invalidate
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result<JsonValue>` containing the success response
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("your_api_key", "access_token");
+    /// 
+    /// let result = client.invalidate_access_token("access_token").await?;
+    /// println!("Session invalidated: {:?}", result);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn invalidate_access_token(&self, access_token: &str) -> Result<JsonValue> {
+        // For invalidate session, the API expects query parameters, not form data
+        let query_params = vec![
+            ("api_key", self.api_key.as_str()),
+            ("access_token", access_token),
+        ];
 
-        self.send_request_with_rate_limiting_and_retry(
+        let resp = self.send_request_with_rate_limiting_and_retry(
             KiteEndpoint::InvalidateSession, 
             &[],
-            None,
-            Some(data)
-        ).await.map_err(|e| anyhow!("Invalidate access token failed: {:?}", e))
+            Some(query_params),
+            None // No form data for DELETE request
+        ).await.map_err(|e| anyhow!("Invalidate access token failed: {:?}", e))?;
+
+        if resp.status().is_success() {
+            let jsn: JsonValue = resp.json().await?;
+            Ok(jsn)
+        } else {
+            let error_text: String = resp.text().await?;
+            Err(anyhow!(error_text))
+        }
     }
 
     /// Request for new access token
@@ -320,5 +358,46 @@ impl KiteConnect {
         // Extract the data field from response
         let data = json_response["data"].clone();
         self.parse_response(data)
+    }
+
+    /// Invalidates access token with typed response
+    /// 
+    /// Returns strongly typed logout response instead of JsonValue.
+    /// This is the preferred method for new applications.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `access_token` - The access token to invalidate
+    /// 
+    /// # Returns
+    /// 
+    /// A `KiteResult<bool>` indicating success (true) or failure
+    /// 
+    /// # Example
+    /// 
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    /// 
+    /// let success = client.invalidate_access_token_typed("access_token").await?;
+    /// println!("Session invalidated: {}", success);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn invalidate_access_token_typed(&self, access_token: &str) -> KiteResult<bool> {
+        let json_response = self.invalidate_access_token(access_token).await
+            .map_err(|e| crate::models::common::KiteError::Legacy(e))?;
+        
+        // According to the API docs, response format is { "status": "success", "data": true }
+        match json_response["data"].as_bool() {
+            Some(success) => Ok(success),
+            None => {
+                // Fallback: if data field is not boolean, parse the whole response
+                Ok(json_response["status"].as_str() == Some("success"))
+            }
+        }
     }
 }
