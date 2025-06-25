@@ -265,7 +265,7 @@ impl CategoryStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::{sleep, Duration};
+    use tokio::time::Duration;
 
     #[tokio::test]
     async fn test_rate_limiter_basic_functionality() {

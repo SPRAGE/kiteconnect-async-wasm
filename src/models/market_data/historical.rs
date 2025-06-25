@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, Utc, NaiveDateTime};
 use crate::models::common::Interval;
 
 /// Historical data request parameters
@@ -10,10 +10,10 @@ pub struct HistoricalDataRequest {
     pub instrument_token: u32,
     
     /// From date
-    pub from: NaiveDate,
+    pub from: NaiveDateTime,
     
     /// To date
-    pub to: NaiveDate,
+    pub to: NaiveDateTime,
     
     /// Interval (timeframe)
     pub interval: Interval,
@@ -81,8 +81,8 @@ impl HistoricalDataRequest {
     /// Create a new historical data request
     pub fn new(
         instrument_token: u32,
-        from: NaiveDate,
-        to: NaiveDate,
+        from: NaiveDateTime,
+        to: NaiveDateTime,
         interval: Interval,
     ) -> Self {
         Self {

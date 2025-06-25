@@ -16,7 +16,7 @@ use crate::connect::utils::parse_csv_with_core;
 
 // Import typed models for dual API support
 use crate::models::common::KiteResult;
-use crate::models::market_data::{Quote, OHLC, LTP, HistoricalData};
+use crate::models::market_data::{Quote, OHLC, LTP, HistoricalData, HistoricalDataRequest};
 
 impl KiteConnect {
     // === LEGACY API METHODS (JSON responses) ===
@@ -60,11 +60,7 @@ impl KiteConnect {
             }
         }
 
-        let endpoint = if exchange.is_some() {
-            KiteEndpoint::Instruments
-        } else {
-            KiteEndpoint::Instruments
-        };
+        let endpoint = KiteEndpoint::Instruments;
 
         let path_segments = if let Some(exchange) = exchange {
             vec![exchange]
@@ -130,11 +126,7 @@ impl KiteConnect {
             }
         }
 
-        let endpoint = if exchange.is_some() {
-            KiteEndpoint::Instruments
-        } else {
-            KiteEndpoint::Instruments
-        };
+        let endpoint = KiteEndpoint::Instruments;
 
         let path_segments = if let Some(exchange) = exchange {
             vec![exchange]
@@ -310,10 +302,11 @@ impl KiteConnect {
         interval: &str,
         continuous: &str,
     ) -> Result<JsonValue> {
-        let mut params = Vec::new();
-        params.push(("from", from_date));
-        params.push(("to", to_date));
-        params.push(("continuous", continuous));
+        let params = vec![
+            ("from", from_date),
+            ("to", to_date),
+            ("continuous", continuous),
+        ];
         
         let resp = self.send_request_with_rate_limiting_and_retry(
             KiteEndpoint::HistoricalData, 
@@ -637,11 +630,7 @@ impl KiteConnect {
     /// 
     /// # Arguments
     /// 
-    /// * `instrument_token` - The instrument token
-    /// * `from_date` - Start date in YYYY-MM-DD format
-    /// * `to_date` - End date in YYYY-MM-DD format
-    /// * `interval` - Time interval for candlesticks
-    /// * `continuous` - Whether to include continuous data
+    /// * `request` - A `HistoricalDataRequest` containing all the parameters for the request
     /// 
     /// # Returns
     /// 
@@ -651,18 +640,22 @@ impl KiteConnect {
     /// 
     /// ```rust,no_run
     /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
+    /// use kiteconnect_async_wasm::models::common::Interval;
+    /// use chrono::NaiveDateTime;
     /// 
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = KiteConnect::new("api_key", "access_token");
     /// 
-    /// let historical_data = client.historical_data_typed(
-    ///     "738561",           // RELIANCE instrument token
-    ///     "2023-11-01",       // From date
-    ///     "2023-11-30",       // To date
-    ///     "day",              // Daily interval
-    ///     "0"                 // No continuous data
-    /// ).await?;
+    /// let request = HistoricalDataRequest::new(
+    ///     738561,             // RELIANCE instrument token
+    ///     NaiveDateTime::parse_from_str("2023-11-01 00:00:00", "%Y-%m-%d %H:%M:%S")?,
+    ///     NaiveDateTime::parse_from_str("2023-11-30 23:59:59", "%Y-%m-%d %H:%M:%S")?,
+    ///     Interval::Day,
+    /// ).continuous(false);
+    /// 
+    /// let historical_data = client.historical_data_typed(request).await?;
     /// 
     /// for candle in &historical_data.candles {
     ///     println!("Date: {}, Close: {}, Volume: {}", 
@@ -673,21 +666,29 @@ impl KiteConnect {
     /// ```
     pub async fn historical_data_typed(
         &self,
-        instrument_token: &str,
-        from_date: &str,
-        to_date: &str,
-        interval: &str,
-        continuous: &str,
+        request: HistoricalDataRequest,
     ) -> KiteResult<HistoricalData> {
         let mut params = Vec::new();
-        params.push(("from", from_date));
-        params.push(("to", to_date));
-        params.push(("continuous", continuous));
+        params.push(("from", request.from.format("%Y-%m-%d %H:%M:%S").to_string()));
+        params.push(("to", request.to.format("%Y-%m-%d %H:%M:%S").to_string()));
+        
+        if let Some(continuous) = request.continuous {
+            params.push(("continuous", if continuous { "1" } else { "0" }.to_string()));
+        }
+        
+        if let Some(oi) = request.oi {
+            params.push(("oi", if oi { "1" } else { "0" }.to_string()));
+        }
+        
+        // Convert params to the expected format
+        let params_str: Vec<(&str, &str)> = params.iter()
+            .map(|(k, v)| (*k, v.as_str()))
+            .collect();
         
         let resp = self.send_request_with_rate_limiting_and_retry(
             KiteEndpoint::HistoricalData,
-            &[instrument_token, interval],
-            Some(params),
+            &[&request.instrument_token.to_string(), &request.interval.to_string()],
+            Some(params_str),
             None,
         ).await?;
         

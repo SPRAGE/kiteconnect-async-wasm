@@ -317,7 +317,7 @@ impl KiteConnect {
         api_secret: &str,
     ) -> KiteResult<SessionData> {
         let json_response = self.generate_session(request_token, api_secret).await
-            .map_err(|e| crate::models::common::KiteError::Legacy(e))?;
+            .map_err(crate::models::common::KiteError::Legacy)?;
         
         // Extract the data field from response
         let data = json_response["data"].clone();
@@ -389,7 +389,7 @@ impl KiteConnect {
     /// ```
     pub async fn invalidate_access_token_typed(&self, access_token: &str) -> KiteResult<bool> {
         let json_response = self.invalidate_access_token(access_token).await
-            .map_err(|e| crate::models::common::KiteError::Legacy(e))?;
+            .map_err(crate::models::common::KiteError::Legacy)?;
         
         // According to the API docs, response format is { "status": "success", "data": true }
         match json_response["data"].as_bool() {

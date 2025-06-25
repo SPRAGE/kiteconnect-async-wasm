@@ -348,7 +348,7 @@ impl KiteConnect {
             .timeout(Duration::from_secs(config.timeout))
             .pool_max_idle_per_host(config.max_idle_connections)
             .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
-            .user_agent(&format!("kiteconnect-rust/{}", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("kiteconnect-rust/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("Failed to create HTTP client");
             
@@ -468,7 +468,7 @@ impl KiteConnect {
     /// Enhanced JSON response handler with better error handling
     pub(crate) async fn raise_or_return_json_typed(&self, resp: reqwest::Response) -> KiteResult<JsonValue> {
         if resp.status().is_success() {
-            resp.json().await.map_err(|e| KiteError::Http(e))
+            resp.json().await.map_err(KiteError::Http)
         } else {
             let status_code = resp.status().as_u16();
             let status = status_code.to_string();
@@ -558,7 +558,7 @@ impl KiteConnect {
     /// into strongly typed model structs for the new typed API methods.
     fn parse_response<T: DeserializeOwned>(&self, response: JsonValue) -> KiteResult<T> {
         serde_json::from_value(response)
-            .map_err(|e| KiteError::Json(e))
+            .map_err(KiteError::Json)
     }
 
     /// Determines if a request should be retried based on the error type
@@ -688,8 +688,7 @@ mod tests {
         let url = kiteconnect.build_url("/my-holdings", None);
         assert_eq!(url.as_str(), format!("{}/my-holdings", URL).as_str());
 
-        let mut params: Vec<(&str, &str)> = Vec::new();
-        params.push(("one", "1"));
+        let params: Vec<(&str, &str)> = vec![("one", "1")];
         let url = kiteconnect.build_url("/my-holdings", Some(params));
         assert_eq!(url.as_str(), format!("{}/my-holdings?one=1", URL).as_str());
     }
