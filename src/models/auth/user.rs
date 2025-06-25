@@ -25,10 +25,6 @@ pub struct UserProfile {
     /// Email address
     pub email: String,
     
-    /// Phone number
-    #[serde(default)]
-    pub phone: String,
-    
     /// Avatar URL
     #[serde(default)]
     pub avatar_url: Option<String>,
@@ -44,10 +40,6 @@ pub struct UserProfile {
     
     /// List of enabled order types
     pub order_types: Vec<String>,
-    
-    /// PAN (Permanent Account Number)
-    #[serde(default)]
-    pub pan: Option<String>,
     
     /// User metadata
     #[serde(default)]
@@ -209,13 +201,11 @@ mod tests {
             user_shortname: "testuser".to_string(),
             user_type: "individual".to_string(),
             email: "test@example.com".to_string(),
-            phone: "+91-9876543210".to_string(),
             avatar_url: None,
             broker: "ZERODHA".to_string(),
             exchanges: vec!["NSE".to_string(), "BSE".to_string()],
             products: vec!["CNC".to_string(), "MIS".to_string()],
             order_types: vec!["MARKET".to_string(), "LIMIT".to_string()],
-            pan: Some("ABCDE1234F".to_string()),
             meta: None,
         };
         
