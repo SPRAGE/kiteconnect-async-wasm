@@ -38,10 +38,10 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 
 ```toml
 [dependencies]
-kiteconnect-async-wasm = { version = "1.0.2", features = ["native"] }
+kiteconnect-async-wasm = "1.0.3", features = ["native"] }
 
 # For WASM targets
-# kiteconnect-async-wasm = { version = "1.0.2", features = ["wasm"] }
+# kiteconnect-async-wasm = "1.0.3", features = ["wasm"] }
 ```
 
 ### Basic Usage (Legacy API - Backward Compatible)
