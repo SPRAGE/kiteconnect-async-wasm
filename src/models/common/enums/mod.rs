@@ -8,7 +8,7 @@ organized into logical submodules for better maintainability.
 
 - `exchange`: Stock exchanges and trading venues
 - `trading`: Trading-related enums (products, validity, transaction types, etc.)
-- `instruments`: Instrument types and market segments  
+- `instruments`: Instrument types and market segments
 - `interval`: Time intervals for historical data
 - `gtt`: Good Till Triggered order status
 */

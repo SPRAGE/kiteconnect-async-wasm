@@ -1,14 +1,13 @@
 //! # Utility Functions
-//! 
+//!
 //! This module contains utility functions used throughout the KiteConnect library.
 
+use anyhow::Result;
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use serde_json::Value as JsonValue;
-use anyhow::Result;
 use std::collections::HashMap;
 
-
-// WASM platform imports  
+// WASM platform imports
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use web_sys::window;
 
@@ -19,7 +18,7 @@ use js_sys::Uint8Array;
 use wasm_bindgen_futures::JsFuture;
 
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-use csv_core::{Reader, ReadFieldResult};
+use csv_core::{ReadFieldResult, Reader};
 
 #[cfg(not(test))]
 pub const URL: &str = "https://api.kite.trade";
@@ -44,16 +43,16 @@ pub fn parse_csv_with_core(csv_data: &str) -> Result<JsonValue> {
     let mut output = vec![0; 1024];
     let mut field = Vec::new();
     let mut input = csv_data.as_bytes();
-    
+
     let mut headers: Vec<String> = Vec::new();
     let mut records: Vec<Vec<String>> = Vec::new();
     let mut current_record: Vec<String> = Vec::new();
     let mut is_first_row = true;
-    
+
     loop {
         let (result, input_consumed, output_written) = reader.read_field(input, &mut output);
         input = &input[input_consumed..];
-        
+
         match result {
             ReadFieldResult::InputEmpty => {
                 if !current_record.is_empty() {
@@ -75,7 +74,7 @@ pub fn parse_csv_with_core(csv_data: &str) -> Result<JsonValue> {
                 let field_str = String::from_utf8_lossy(&field).to_string();
                 current_record.push(field_str);
                 field.clear();
-                
+
                 if record_end {
                     if is_first_row {
                         headers = current_record.clone();
@@ -92,7 +91,7 @@ pub fn parse_csv_with_core(csv_data: &str) -> Result<JsonValue> {
             }
         }
     }
-    
+
     // Convert to JSON format
     let mut result: Vec<JsonValue> = Vec::new();
     for record in records {
@@ -104,6 +103,6 @@ pub fn parse_csv_with_core(csv_data: &str) -> Result<JsonValue> {
         }
         result.push(JsonValue::Object(obj));
     }
-    
+
     Ok(JsonValue::Array(result))
 }

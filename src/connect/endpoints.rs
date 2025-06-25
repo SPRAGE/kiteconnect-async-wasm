@@ -1,5 +1,5 @@
 //! # Endpoint Management Module
-//! 
+//!
 //! This module provides centralized endpoint definitions and rate limiting
 //! configuration for all KiteConnect API endpoints.
 
@@ -100,7 +100,7 @@ pub enum KiteEndpoint {
     RenewAccessToken,
     /// Invalidate refresh token
     InvalidateRefreshToken,
-    
+
     // === User Profile Endpoints ===
     /// Get user profile
     Profile,
@@ -108,7 +108,7 @@ pub enum KiteEndpoint {
     Margins,
     /// Get segment-specific margins
     MarginsSegment,
-    
+
     // === Portfolio Endpoints ===
     /// Get holdings
     Holdings,
@@ -116,7 +116,7 @@ pub enum KiteEndpoint {
     Positions,
     /// Convert position
     ConvertPosition,
-    
+
     // === Order Management Endpoints ===
     /// Place order
     PlaceOrder,
@@ -132,7 +132,7 @@ pub enum KiteEndpoint {
     Trades,
     /// Get order trades
     OrderTrades,
-    
+
     // === Market Data Endpoints (Quote Category) ===
     /// Get real-time quotes
     Quote,
@@ -140,11 +140,11 @@ pub enum KiteEndpoint {
     OHLC,
     /// Get Last Traded Price
     LTP,
-    
+
     // === Market Data Endpoints (Historical Category) ===
     /// Get historical data
     HistoricalData,
-    
+
     // === Market Data Endpoints (Standard Category) ===
     /// Get instruments list
     Instruments,
@@ -154,7 +154,7 @@ pub enum KiteEndpoint {
     TriggerRange,
     /// Get market margins
     MarketMargins,
-    
+
     // === Mutual Fund Endpoints ===
     /// Place MF order
     PlaceMFOrder,
@@ -176,7 +176,7 @@ pub enum KiteEndpoint {
     SIPs,
     /// Get SIP info
     SIPInfo,
-    
+
     // === GTT Endpoints ===
     /// Place GTT
     PlaceGTT,
@@ -225,7 +225,7 @@ impl KiteEndpoint {
                 RateLimitCategory::Standard,
                 true,
             ),
-            
+
             // === User Profile Endpoints ===
             KiteEndpoint::Profile => Endpoint::new(
                 HttpMethod::GET,
@@ -245,7 +245,7 @@ impl KiteEndpoint {
                 RateLimitCategory::Standard,
                 true,
             ),
-            
+
             // === Portfolio Endpoints ===
             KiteEndpoint::Holdings => Endpoint::new(
                 HttpMethod::GET,
@@ -265,20 +265,14 @@ impl KiteEndpoint {
                 RateLimitCategory::Standard,
                 true,
             ),
-            
+
             // === Order Management Endpoints ===
-            KiteEndpoint::PlaceOrder => Endpoint::new(
-                HttpMethod::POST,
-                "/orders",
-                RateLimitCategory::Orders,
-                true,
-            ),
-            KiteEndpoint::ModifyOrder => Endpoint::new(
-                HttpMethod::PUT,
-                "/orders",
-                RateLimitCategory::Orders,
-                true,
-            ),
+            KiteEndpoint::PlaceOrder => {
+                Endpoint::new(HttpMethod::POST, "/orders", RateLimitCategory::Orders, true)
+            }
+            KiteEndpoint::ModifyOrder => {
+                Endpoint::new(HttpMethod::PUT, "/orders", RateLimitCategory::Orders, true)
+            }
             KiteEndpoint::CancelOrder => Endpoint::new(
                 HttpMethod::DELETE,
                 "/orders",
@@ -309,14 +303,11 @@ impl KiteEndpoint {
                 RateLimitCategory::Standard,
                 true,
             ),
-            
+
             // === Market Data Endpoints (Quote Category) ===
-            KiteEndpoint::Quote => Endpoint::new(
-                HttpMethod::GET,
-                "/quote",
-                RateLimitCategory::Quote,
-                true,
-            ),
+            KiteEndpoint::Quote => {
+                Endpoint::new(HttpMethod::GET, "/quote", RateLimitCategory::Quote, true)
+            }
             KiteEndpoint::OHLC => Endpoint::new(
                 HttpMethod::GET,
                 "/quote/ohlc",
@@ -329,7 +320,7 @@ impl KiteEndpoint {
                 RateLimitCategory::Quote,
                 true,
             ),
-            
+
             // === Market Data Endpoints (Historical Category) ===
             KiteEndpoint::HistoricalData => Endpoint::new(
                 HttpMethod::GET,
@@ -337,7 +328,7 @@ impl KiteEndpoint {
                 RateLimitCategory::Historical,
                 true,
             ),
-            
+
             // === Market Data Endpoints (Standard Category) ===
             KiteEndpoint::Instruments => Endpoint::new(
                 HttpMethod::GET,
@@ -363,7 +354,7 @@ impl KiteEndpoint {
                 RateLimitCategory::Standard,
                 true,
             ),
-            
+
             // === Mutual Fund Endpoints ===
             KiteEndpoint::PlaceMFOrder => Endpoint::new(
                 HttpMethod::POST,
@@ -401,12 +392,9 @@ impl KiteEndpoint {
                 RateLimitCategory::Orders,
                 true,
             ),
-            KiteEndpoint::ModifySIP => Endpoint::new(
-                HttpMethod::PUT,
-                "/mf/sips",
-                RateLimitCategory::Orders,
-                true,
-            ),
+            KiteEndpoint::ModifySIP => {
+                Endpoint::new(HttpMethod::PUT, "/mf/sips", RateLimitCategory::Orders, true)
+            }
             KiteEndpoint::CancelSIP => Endpoint::new(
                 HttpMethod::DELETE,
                 "/mf/sips",
@@ -425,7 +413,7 @@ impl KiteEndpoint {
                 RateLimitCategory::Standard,
                 true,
             ),
-            
+
             // === GTT Endpoints ===
             KiteEndpoint::PlaceGTT => Endpoint::new(
                 HttpMethod::POST,
@@ -481,16 +469,16 @@ impl KiteEndpoint {
     }
 
     /// Build the full URL path with dynamic segments
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `segments` - Dynamic path segments to append
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use kiteconnect_async_wasm::connect::endpoints::KiteEndpoint;
-    /// 
+    ///
     /// let endpoint = KiteEndpoint::OrderHistory;
     /// let path = endpoint.build_path(&["order_id_123"]);
     /// assert_eq!(path, "/orders/order_id_123");
@@ -507,20 +495,50 @@ impl KiteEndpoint {
     /// Get all endpoints in a specific rate limit category
     pub fn by_rate_limit_category(category: RateLimitCategory) -> Vec<KiteEndpoint> {
         use KiteEndpoint::*;
-        
+
         let all_endpoints = vec![
-            LoginUrl, GenerateSession, InvalidateSession, RenewAccessToken,
-            Profile, Margins, MarginsSegment,
-            Holdings, Positions, ConvertPosition,
-            PlaceOrder, ModifyOrder, CancelOrder, Orders, OrderHistory, Trades, OrderTrades,
-            Quote, OHLC, LTP,
+            LoginUrl,
+            GenerateSession,
+            InvalidateSession,
+            RenewAccessToken,
+            Profile,
+            Margins,
+            MarginsSegment,
+            Holdings,
+            Positions,
+            ConvertPosition,
+            PlaceOrder,
+            ModifyOrder,
+            CancelOrder,
+            Orders,
+            OrderHistory,
+            Trades,
+            OrderTrades,
+            Quote,
+            OHLC,
+            LTP,
             HistoricalData,
-            Instruments, MFInstruments, TriggerRange, MarketMargins,
-            PlaceMFOrder, CancelMFOrder, MFOrders, MFOrderInfo, MFHoldings,
-            PlaceSIP, ModifySIP, CancelSIP, SIPs, SIPInfo,
-            PlaceGTT, ModifyGTT, CancelGTT, GTTs, GTTInfo,
+            Instruments,
+            MFInstruments,
+            TriggerRange,
+            MarketMargins,
+            PlaceMFOrder,
+            CancelMFOrder,
+            MFOrders,
+            MFOrderInfo,
+            MFHoldings,
+            PlaceSIP,
+            ModifySIP,
+            CancelSIP,
+            SIPs,
+            SIPInfo,
+            PlaceGTT,
+            ModifyGTT,
+            CancelGTT,
+            GTTs,
+            GTTInfo,
         ];
-        
+
         all_endpoints
             .into_iter()
             .filter(|endpoint| endpoint.rate_limit_category() == category)
@@ -544,7 +562,7 @@ mod tests {
     fn test_endpoint_configuration() {
         let quote_endpoint = KiteEndpoint::Quote;
         let config = quote_endpoint.config();
-        
+
         assert_eq!(config.method, HttpMethod::GET);
         assert_eq!(config.path, "/quote");
         assert_eq!(config.rate_limit_category, RateLimitCategory::Quote);
@@ -556,7 +574,10 @@ mod tests {
         let endpoint = KiteEndpoint::OrderHistory;
         assert_eq!(endpoint.build_path(&[]), "/orders");
         assert_eq!(endpoint.build_path(&["order_123"]), "/orders/order_123");
-        assert_eq!(endpoint.build_path(&["order_123", "trades"]), "/orders/order_123/trades");
+        assert_eq!(
+            endpoint.build_path(&["order_123", "trades"]),
+            "/orders/order_123/trades"
+        );
     }
 
     #[test]
@@ -573,10 +594,11 @@ mod tests {
         assert!(quote_endpoints.contains(&KiteEndpoint::Quote));
         assert!(quote_endpoints.contains(&KiteEndpoint::OHLC));
         assert!(quote_endpoints.contains(&KiteEndpoint::LTP));
-        
-        let historical_endpoints = KiteEndpoint::by_rate_limit_category(RateLimitCategory::Historical);
+
+        let historical_endpoints =
+            KiteEndpoint::by_rate_limit_category(RateLimitCategory::Historical);
         assert!(historical_endpoints.contains(&KiteEndpoint::HistoricalData));
-        
+
         let order_endpoints = KiteEndpoint::by_rate_limit_category(RateLimitCategory::Orders);
         assert!(order_endpoints.contains(&KiteEndpoint::PlaceOrder));
         assert!(order_endpoints.contains(&KiteEndpoint::ModifyOrder));
@@ -594,9 +616,21 @@ mod tests {
 
     #[test]
     fn test_min_delay_calculation() {
-        assert_eq!(RateLimitCategory::Quote.min_delay(), Duration::from_millis(1000));
-        assert_eq!(RateLimitCategory::Historical.min_delay(), Duration::from_millis(333));
-        assert_eq!(RateLimitCategory::Orders.min_delay(), Duration::from_millis(100));
-        assert_eq!(RateLimitCategory::Standard.min_delay(), Duration::from_millis(100));
+        assert_eq!(
+            RateLimitCategory::Quote.min_delay(),
+            Duration::from_millis(1000)
+        );
+        assert_eq!(
+            RateLimitCategory::Historical.min_delay(),
+            Duration::from_millis(333)
+        );
+        assert_eq!(
+            RateLimitCategory::Orders.min_delay(),
+            Duration::from_millis(100)
+        );
+        assert_eq!(
+            RateLimitCategory::Standard.min_delay(),
+            Duration::from_millis(100)
+        );
     }
 }

@@ -69,10 +69,13 @@ impl<'de> serde::Deserialize<'de> for Interval {
                     "30minute" => Ok(Interval::ThirtyMinute),
                     "60minute" => Ok(Interval::SixtyMinute),
                     "day" => Ok(Interval::Day),
-                    _ => Err(serde::de::Error::unknown_variant(value, &[
-                        "minute", "3minute", "5minute", "10minute", 
-                        "15minute", "30minute", "60minute", "day"
-                    ])),
+                    _ => Err(serde::de::Error::unknown_variant(
+                        value,
+                        &[
+                            "minute", "3minute", "5minute", "10minute", "15minute", "30minute",
+                            "60minute", "day",
+                        ],
+                    )),
                 }
             }
 
@@ -91,7 +94,7 @@ impl<'de> serde::Deserialize<'de> for Interval {
                     7 => Ok(Interval::SixtyMinute),
                     _ => Err(serde::de::Error::invalid_value(
                         serde::de::Unexpected::Signed(value as i64),
-                        &"an integer between 0 and 7"
+                        &"an integer between 0 and 7",
                     )),
                 }
             }
@@ -112,7 +115,7 @@ impl<'de> serde::Deserialize<'de> for Interval {
                 } else {
                     Err(serde::de::Error::invalid_value(
                         serde::de::Unexpected::Signed(value as i64),
-                        &"an integer between 0 and 7"
+                        &"an integer between 0 and 7",
                     ))
                 }
             }
@@ -126,7 +129,7 @@ impl<'de> serde::Deserialize<'de> for Interval {
                 } else {
                     Err(serde::de::Error::invalid_value(
                         serde::de::Unexpected::Unsigned(value as u64),
-                        &"an integer between 0 and 7"
+                        &"an integer between 0 and 7",
                     ))
                 }
             }
@@ -140,7 +143,7 @@ impl<'de> serde::Deserialize<'de> for Interval {
                 } else {
                     Err(serde::de::Error::invalid_value(
                         serde::de::Unexpected::Signed(value),
-                        &"an integer between 0 and 7"
+                        &"an integer between 0 and 7",
                     ))
                 }
             }
@@ -154,7 +157,7 @@ impl<'de> serde::Deserialize<'de> for Interval {
                 } else {
                     Err(serde::de::Error::invalid_value(
                         serde::de::Unexpected::Unsigned(value),
-                        &"an integer between 0 and 7"
+                        &"an integer between 0 and 7",
                     ))
                 }
             }
@@ -169,7 +172,7 @@ impl Interval {
     pub fn as_i8(self) -> i8 {
         self as i8
     }
-    
+
     /// Create an interval from its integer representation
     pub fn from_i8(value: i8) -> Option<Self> {
         match value {
@@ -184,7 +187,7 @@ impl Interval {
             _ => None,
         }
     }
-    
+
     /// All available intervals
     pub fn all() -> Vec<Self> {
         vec![

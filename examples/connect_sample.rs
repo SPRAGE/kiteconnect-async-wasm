@@ -12,7 +12,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{:?}", loginurl);
 
     // Generate access token with the above request token
-    let resp = kiteconnect.generate_session("<REQUEST-TOKEN>", "<API-SECRET>").await?;
+    let resp = kiteconnect
+        .generate_session("<REQUEST-TOKEN>", "<API-SECRET>")
+        .await?;
     // `generate_session` internally sets the access token from the response
     println!("{:?}", resp);
 

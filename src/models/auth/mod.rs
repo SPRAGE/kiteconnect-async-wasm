@@ -3,7 +3,7 @@ Authentication and user-related data models.
 
 This module provides typed models for:
 - Session management (login, access tokens)
-- User profiles and account information  
+- User profiles and account information
 - Margin data and segment details
 */
 
