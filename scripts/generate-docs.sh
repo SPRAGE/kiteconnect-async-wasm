@@ -1,7 +1,9 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
-# Generate comprehensive documentation for KiteConnect Rust library
-echo "🚀 Generating KiteConnect documentation..."
+# Generate comprehensive documentation for the crate
+CRATE_NAME=${CRATE_NAME:-kiteconnect}
+CRATE_TITLE=${CRATE_TITLE:-KiteConnect}
+echo "🚀 Generating $CRATE_TITLE documentation..."
 
 # Clean previous documentation
 echo "🧹 Cleaning previous documentation..."
@@ -20,7 +22,7 @@ cargo doc \
     --all-features
 
 # Check if documentation was generated successfully in target/doc
-if [ -f "target/doc/kiteconnect/index.html" ]; then
+if [ -f "target/doc/${CRATE_NAME}/index.html" ]; then
     echo "📁 Copying documentation to root doc/ folder..."
     # Create doc directory if it doesn't exist
     mkdir -p doc
@@ -32,22 +34,22 @@ if [ -f "target/doc/kiteconnect/index.html" ]; then
     
     # Create a comprehensive README for the docs
     cat > doc/README.md << 'EOF'
-# KiteConnect Rust Library Documentation
+# ${CRATE_TITLE} Rust Library Documentation
 
-This documentation provides comprehensive information about the KiteConnect Rust library.
+This documentation provides comprehensive information about the ${CRATE_TITLE} Rust library.
 
 ## Navigation
 
-- **[Main Library Documentation](kiteconnect/index.html)** - Core library documentation
-- **[API Reference](kiteconnect/connect/index.html)** - Detailed API methods
-- **[Source Code](src/kiteconnect/)** - Browse source code
+- **[Main Library Documentation](${CRATE_NAME}/index.html)** - Core library documentation
+- **[API Reference](${CRATE_NAME}/connect/index.html)** - Detailed API methods
+- **[Source Code](src/${CRATE_NAME}/)** - Browse source code
 
 ## Quick Links
 
 ### Getting Started
-- [Installation](kiteconnect/index.html#quick-start)
-- [Authentication Flow](kiteconnect/connect/index.html#authentication-flow)
-- [Basic Usage Examples](kiteconnect/index.html#basic-usage)
+- [Installation](${CRATE_NAME}/index.html#quick-start)
+- [Authentication Flow](${CRATE_NAME}/connect/index.html#authentication-flow)
+- [Basic Usage Examples](${CRATE_NAME}/index.html#basic-usage)
 
 ### API Categories
 - **Portfolio**: Holdings, Positions, Margins
@@ -56,9 +58,9 @@ This documentation provides comprehensive information about the KiteConnect Rust
 - **Mutual Funds**: MF orders and instruments
 
 ### Examples
-- [Basic Example](kiteconnect/index.html#basic-usage)
-- [Error Handling](kiteconnect/index.html#error-handling)
-- [Concurrent Operations](kiteconnect/index.html#thread-safety)
+- [Basic Example](${CRATE_NAME}/index.html#basic-usage)
+- [Error Handling](${CRATE_NAME}/index.html#error-handling)
+- [Concurrent Operations](${CRATE_NAME}/index.html#thread-safety)
 
 ## Features
 
@@ -82,7 +84,7 @@ EOF
 
 ## Authentication
 ```rust
-let mut client = KiteConnect::new("api_key", "");
+let mut client = ${CRATE_TITLE}::new("api_key", "");
 let login_url = client.login_url();
 // User completes login...
 let session = client.generate_session("request_token", "api_secret").await?;
@@ -125,14 +127,14 @@ let (holdings, positions) = tokio::try_join!(
 EOF
     
     echo "✅ Documentation generated successfully!"
-    echo "📖 Main documentation: doc/kiteconnect/index.html"
+    echo "📖 Main documentation: doc/${CRATE_NAME}/index.html"
     echo "📚 Quick reference: doc/QUICKREF.md"
     echo "📋 Documentation guide: doc/README.md"
-    echo "🌐 Open in browser: file://$(pwd)/doc/kiteconnect/index.html"
+    echo "🌐 Open in browser: file://$(pwd)/doc/${CRATE_NAME}/index.html"
     echo ""
     echo "📊 Documentation statistics:"
     echo "   - Total files: $(find doc -name "*.html" | wc -l)"
-    echo "   - Main modules: $(find doc/kiteconnect -maxdepth 1 -name "*.html" | wc -l)"
+    echo "   - Main modules: $(find doc/${CRATE_NAME} -maxdepth 1 -name "*.html" | wc -l)"
     echo "   - Source files: $(find doc/src -name "*.html" | wc -l)"
 else
     echo "❌ Documentation generation failed!"

@@ -374,6 +374,14 @@ This repository uses automated releases:
 ./scripts/bump-version.sh 1.0.3
 ```
 
+### Template Workflows
+
+This repository includes a reusable template under the `template/` directory.
+Copy `template/.github` and `template/scripts` into a new project to reuse the
+release and CI workflows. Set the `CRATE_NAME` environment variable in
+`template/.github/workflows/release.yml` to match your crate name.
+
+
 ## 📄 License
 
 This project is released under the [Unlicense](http://unlicense.org/) - see the [LICENSE](LICENSE) file for details.

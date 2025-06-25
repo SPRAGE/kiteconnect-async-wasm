@@ -9,6 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CRATE_NAME: kiteconnect-async-wasm
 
 permissions:
   contents: write  # Required to create tags and releases
@@ -195,10 +196,10 @@ jobs:
               echo "Add this to your \`Cargo.toml\`:"
               echo "\`\`\`toml"
               echo "[dependencies]"
-              echo "kiteconnect-async-wasm = \"$VERSION\""
+              echo "${{ env.CRATE_NAME }} = \"$VERSION\""
               echo "\`\`\`"
               echo ""
-              echo "For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/)."
+              echo "For more details, see the [documentation](https://docs.rs/${{ env.CRATE_NAME }}/$VERSION/)."
             } > release_notes.txt
           fi
         else
@@ -212,10 +213,10 @@ jobs:
             echo "Add this to your \`Cargo.toml\`:"
             echo "\`\`\`toml"
             echo "[dependencies]"
-            echo "kiteconnect-async-wasm = \"$VERSION\""
+            echo "${{ env.CRATE_NAME }} = \"$VERSION\""
             echo "\`\`\`"
             echo ""
-            echo "For more details, see the [documentation](https://docs.rs/kiteconnect-async-wasm/$VERSION/)."
+            echo "For more details, see the [documentation](https://docs.rs/${{ env.CRATE_NAME }}/$VERSION/)."
           } > release_notes.txt
         fi
         
