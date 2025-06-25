@@ -235,6 +235,7 @@ async fn example_api_method_usage() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kiteconnect_async_wasm::connect::endpoints::HttpMethod;
 
     #[tokio::test]
     async fn test_endpoint_system() {
