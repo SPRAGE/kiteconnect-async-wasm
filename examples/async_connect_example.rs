@@ -6,9 +6,8 @@ use std::collections::HashMap;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
-use reqwest;
 #[cfg(not(target_arch = "wasm32"))]
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::JsFuture;
@@ -70,7 +69,10 @@ impl KiteConnect {
 
     /// Returns the login url
     pub fn login_url(&self) -> String {
-        format!("https://kite.trade/connect/login?api_key={}&v3", self.api_key)
+        format!(
+            "https://kite.trade/connect/login?api_key={}&v3",
+            self.api_key
+        )
     }
 
     /// Async SHA256 hash computation (platform-specific)
@@ -123,7 +125,7 @@ impl KiteConnect {
         data.insert("checksum", checksum.as_str());
 
         let url = self.build_url("/session/token", None);
-        let mut resp = self.send_request(url, "POST", Some(data)).await?;
+        let resp = self.send_request(url, "POST", Some(data)).await?;
 
         if resp.status().is_success() {
             let jsn: JsonValue = resp.json().await?;
@@ -183,16 +185,36 @@ impl KiteConnect {
         params.insert("transaction_type", transaction_type);
         params.insert("quantity", quantity);
 
-        if let Some(p) = product { params.insert("product", p); }
-        if let Some(ot) = order_type { params.insert("order_type", ot); }
-        if let Some(pr) = price { params.insert("price", pr); }
-        if let Some(v) = validity { params.insert("validity", v); }
-        if let Some(dq) = disclosed_quantity { params.insert("disclosed_quantity", dq); }
-        if let Some(tp) = trigger_price { params.insert("trigger_price", tp); }
-        if let Some(so) = squareoff { params.insert("squareoff", so); }
-        if let Some(sl) = stoploss { params.insert("stoploss", sl); }
-        if let Some(tsl) = trailing_stoploss { params.insert("trailing_stoploss", tsl); }
-        if let Some(t) = tag { params.insert("tag", t); }
+        if let Some(p) = product {
+            params.insert("product", p);
+        }
+        if let Some(ot) = order_type {
+            params.insert("order_type", ot);
+        }
+        if let Some(pr) = price {
+            params.insert("price", pr);
+        }
+        if let Some(v) = validity {
+            params.insert("validity", v);
+        }
+        if let Some(dq) = disclosed_quantity {
+            params.insert("disclosed_quantity", dq);
+        }
+        if let Some(tp) = trigger_price {
+            params.insert("trigger_price", tp);
+        }
+        if let Some(so) = squareoff {
+            params.insert("squareoff", so);
+        }
+        if let Some(sl) = stoploss {
+            params.insert("stoploss", sl);
+        }
+        if let Some(tsl) = trailing_stoploss {
+            params.insert("trailing_stoploss", tsl);
+        }
+        if let Some(t) = tag {
+            params.insert("tag", t);
+        }
 
         let url = self.build_url(&format!("/orders/{}", variety), None);
         let resp = self.send_request(url, "POST", Some(params)).await?;
@@ -248,7 +270,10 @@ impl RequestHandler for KiteConnect {
         // Add headers
         request = request
             .header("X-Kite-Version", "3")
-            .header("Authorization", format!("token {}:{}", self.api_key, self.access_token))
+            .header(
+                "Authorization",
+                format!("token {}:{}", self.api_key, self.access_token),
+            )
             .header("User-Agent", "Rust");
 
         let response = request.send().await?;
@@ -260,40 +285,47 @@ impl RequestHandler for KiteConnect {
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn example_usage() -> Result<()> {
     let mut kite = KiteConnect::new("your_api_key", "");
-    
+
     // Generate session
     let session = kite.generate_session("request_token", "api_secret").await?;
     println!("Session: {:?}", session);
-    
+
     // Get holdings
     let holdings = kite.holdings().await?;
     println!("Holdings: {:?}", holdings);
-    
+
     // Place an order
-    let order = kite.place_order(
-        "regular",
-        "NSE", 
-        "INFY",
-        "BUY",
-        "1",
-        Some("CNC"),
-        Some("LIMIT"),
-        Some("1500.00"),
-        Some("DAY"),
-        None, None, None, None, None, None
-    ).await?;
+    let order = kite
+        .place_order(
+            "regular",
+            "NSE",
+            "INFY",
+            "BUY",
+            "1",
+            Some("CNC"),
+            Some("LIMIT"),
+            Some("1500.00"),
+            Some("DAY"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await?;
     println!("Order placed: {:?}", order);
-    
+
     Ok(())
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn example_usage_wasm() -> Result<()> {
     use wasm_bindgen_futures::spawn_local;
-    
+
     spawn_local(async {
         let mut kite = KiteConnect::new("your_api_key", "");
-        
+
         match kite.holdings().await {
             Ok(holdings) => {
                 web_sys::console::log_1(&format!("Holdings: {:?}", holdings).into());
@@ -303,7 +335,7 @@ pub async fn example_usage_wasm() -> Result<()> {
             }
         }
     });
-    
+
     Ok(())
 }
 
@@ -311,18 +343,18 @@ pub async fn example_usage_wasm() -> Result<()> {
 async fn main() -> Result<()> {
     // Example usage for native environment
     let mut kite = KiteConnect::new("your_api_key", "your_access_token");
-    
+
     // Generate session
     match kite.generate_session("request_token", "api_secret").await {
         Ok(session) => println!("Session generated: {:?}", session),
         Err(e) => println!("Error generating session: {:?}", e),
     }
-    
+
     // Get holdings
     match kite.holdings().await {
         Ok(holdings) => println!("Holdings: {:?}", holdings),
         Err(e) => println!("Error getting holdings: {:?}", e),
     }
-    
+
     Ok(())
 }

@@ -22,14 +22,14 @@ use super::errors::{KiteError, KiteResult};
 pub struct KiteResponse<T> {
     /// Response status ("success" or "error")
     pub status: String,
-    
+
     /// Response data (None for error responses)
     pub data: Option<T>,
-    
+
     /// Response message
     #[serde(default)]
     pub message: String,
-    
+
     /// Error type (for error responses)
     #[serde(default)]
     pub error_type: Option<String>,
@@ -69,16 +69,16 @@ impl<T> KiteResponse<T> {
     /// Extract the data or return an error
     pub fn into_result(self) -> KiteResult<T> {
         match self.status.as_str() {
-            "success" => self.data.ok_or_else(|| {
-                KiteError::general("Success response missing data")
-            }),
+            "success" => self
+                .data
+                .ok_or_else(|| KiteError::general("Success response missing data")),
             "error" => Err(KiteError::api_error_with_type(
                 self.status,
                 self.message,
                 self.error_type.unwrap_or_default(),
             )),
             _ => Err(KiteError::general(format!(
-                "Unknown response status: {}", 
+                "Unknown response status: {}",
                 self.status
             ))),
         }
@@ -90,14 +90,14 @@ impl<T> KiteResponse<T> {
 pub struct RawResponse {
     /// Response status
     pub status: String,
-    
+
     /// Raw JSON data
     pub data: Option<JsonValue>,
-    
+
     /// Response message
     #[serde(default)]
     pub message: String,
-    
+
     /// Error type
     #[serde(default)]
     pub error_type: Option<String>,

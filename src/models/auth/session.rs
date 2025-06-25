@@ -11,54 +11,54 @@ use serde::{Deserialize, Serialize};
 pub struct SessionData {
     /// The unique, permanent user id registered with the broker and the exchanges
     pub user_id: String,
-    
+
     /// User's real name
     pub user_name: String,
-    
+
     /// Shortened version of the user's real name
     pub user_shortname: String,
-    
+
     /// User's email
     pub email: String,
-    
+
     /// User's registered role at the broker. This will be individual for all retail users
     pub user_type: String,
-    
+
     /// The broker ID
     pub broker: String,
-    
+
     /// Exchanges enabled for trading on the user's account
     pub exchanges: Vec<String>,
-    
+
     /// Margin product types enabled for the user
     pub products: Vec<String>,
-    
+
     /// Order types enabled for the user
     pub order_types: Vec<String>,
-    
+
     /// The API key for which the authentication was performed
     pub api_key: String,
-    
+
     /// The authentication token that's used with every subsequent request
-    /// Unless this is invalidated using the API, or invalidated by a master-logout 
+    /// Unless this is invalidated using the API, or invalidated by a master-logout
     /// from the Kite Web trading terminal, it'll expire at 6 AM on the next day (regulatory requirement)
     pub access_token: String,
-    
+
     /// A token for public session validation where requests may be exposed to the public
     #[serde(default)]
     pub public_token: String,
-    
+
     /// A token for getting long standing read permissions. This is only available to certain approved platforms
     #[serde(default)]
     pub refresh_token: String,
-    
+
     /// User's last login time
     pub login_time: String,
-    
+
     /// Session metadata containing demat_consent and other user metadata
     #[serde(default)]
     pub meta: Option<SessionMeta>,
-    
+
     /// Full URL to the user's avatar (PNG image) if there's one
     #[serde(default)]
     pub avatar_url: Option<String>,
@@ -77,22 +77,22 @@ impl SessionData {
     pub fn is_valid(&self) -> bool {
         !self.access_token.is_empty() && !self.user_id.is_empty()
     }
-    
+
     /// Get the access token for API requests
     pub fn token(&self) -> &str {
         &self.access_token
     }
-    
+
     /// Check if the user has access to a specific exchange
     pub fn has_exchange(&self, exchange: &str) -> bool {
         self.exchanges.iter().any(|e| e == exchange)
     }
-    
+
     /// Check if the user has access to a specific product
     pub fn has_product(&self, product: &str) -> bool {
         self.products.iter().any(|p| p == product)
     }
-    
+
     /// Check if the user has access to a specific order type
     pub fn has_order_type(&self, order_type: &str) -> bool {
         self.order_types.iter().any(|o| o == order_type)
@@ -104,13 +104,13 @@ impl SessionData {
 pub struct LoginUrlConfig {
     /// Base login URL
     pub base_url: String,
-    
+
     /// API key
     pub api_key: String,
-    
+
     /// Redirect URL after login
     pub redirect_url: Option<String>,
-    
+
     /// State parameter for CSRF protection
     pub state: Option<String>,
 }
@@ -125,39 +125,40 @@ impl LoginUrlConfig {
             state: None,
         }
     }
-    
+
     /// Set redirect URL
     pub fn with_redirect_url(mut self, url: impl Into<String>) -> Self {
         self.redirect_url = Some(url.into());
         self
     }
-    
+
     /// Set state parameter
     pub fn with_state(mut self, state: impl Into<String>) -> Self {
         self.state = Some(state.into());
         self
     }
-    
+
     /// Generate the complete login URL
     pub fn build_url(&self) -> crate::models::common::KiteResult<String> {
         use url::Url;
-        
+
         let mut url = Url::parse(&self.base_url)?;
-        
+
         // Add required parameters
         url.query_pairs_mut()
             .append_pair("api_key", &self.api_key)
             .append_pair("v", "3"); // API version
-        
+
         // Add optional parameters
         if let Some(ref redirect_url) = self.redirect_url {
-            url.query_pairs_mut().append_pair("redirect_url", redirect_url);
+            url.query_pairs_mut()
+                .append_pair("redirect_url", redirect_url);
         }
-        
+
         if let Some(ref state) = self.state {
             url.query_pairs_mut().append_pair("state", state);
         }
-        
+
         Ok(url.to_string())
     }
 }
@@ -167,15 +168,15 @@ impl LoginUrlConfig {
 pub struct RequestToken {
     /// Request token received from callback
     pub request_token: String,
-    
+
     /// State parameter (for CSRF validation)
     #[serde(default)]
     pub state: Option<String>,
-    
+
     /// Action parameter
     #[serde(default)]
     pub action: Option<String>,
-    
+
     /// Status parameter
     #[serde(default)]
     pub status: Option<String>,
@@ -191,7 +192,7 @@ impl RequestToken {
             status: None,
         }
     }
-    
+
     /// Validate request token format
     pub fn is_valid(&self) -> bool {
         !self.request_token.is_empty() && self.request_token.len() >= 10
@@ -203,7 +204,7 @@ impl RequestToken {
 pub struct LogoutResponse {
     /// Success status
     pub success: bool,
-    
+
     /// Response message
     #[serde(default)]
     pub message: String,
@@ -212,7 +213,7 @@ pub struct LogoutResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_session_data_validation() {
         let mut session = SessionData {
@@ -233,42 +234,42 @@ mod tests {
             meta: None,
             avatar_url: None,
         };
-        
+
         assert!(session.is_valid());
         assert!(session.has_exchange("NSE"));
         assert!(!session.has_exchange("MCX"));
         assert!(session.has_product("CNC"));
         assert!(session.has_order_type("MARKET"));
-        
+
         // Test invalid session
         session.access_token.clear();
         assert!(!session.is_valid());
     }
-    
+
     #[test]
     fn test_login_url_config() {
         let config = LoginUrlConfig::new("test_api_key")
             .with_redirect_url("https://example.com/callback")
             .with_state("random_state");
-        
+
         let url = config.build_url().expect("Failed to build URL");
         println!("Generated URL: {}", url);
-        
+
         assert!(url.contains("api_key=test_api_key"));
         assert!(url.contains("v=3"));
         // The URL encoding might be different, let's check for the unencoded version or partial match
         assert!(url.contains("redirect_url=") && url.contains("example.com"));
         assert!(url.contains("state=random_state"));
     }
-    
+
     #[test]
     fn test_request_token_validation() {
         let valid_token = RequestToken::new("abcdef1234567890");
         assert!(valid_token.is_valid());
-        
+
         let invalid_token = RequestToken::new("short");
         assert!(!invalid_token.is_valid());
-        
+
         let empty_token = RequestToken::new("");
         assert!(!empty_token.is_valid());
     }

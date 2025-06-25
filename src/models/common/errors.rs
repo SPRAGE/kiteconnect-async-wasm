@@ -18,7 +18,6 @@ pub enum KiteError {
     Json(#[from] serde_json::Error),
 
     // === Official KiteConnect API Exception Types ===
-    
     /// Session expired or invalidated (403 header)
     /// User should clear session and re-initiate login
     #[error("Token exception: {0}")]
@@ -57,7 +56,6 @@ pub enum KiteError {
     GeneralException(String),
 
     // === Generic fallback errors ===
-
     /// Generic API error when error_type is not recognized
     #[error("API error: {status} - {message}")]
     Api {
@@ -109,7 +107,7 @@ impl KiteError {
         error_type: Option<String>,
     ) -> Self {
         let message = message.into();
-        
+
         // First, map based on error_type from API response
         if let Some(error_type) = error_type.as_ref() {
             return match error_type.as_str() {
@@ -126,7 +124,7 @@ impl KiteError {
                     status: status.into(),
                     message,
                     error_type: Some(error_type.clone()),
-                }
+                },
             };
         }
 
@@ -162,7 +160,7 @@ impl KiteError {
                 status: status.into(),
                 message,
                 error_type,
-            }
+            },
         }
     }
 

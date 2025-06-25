@@ -1,5 +1,5 @@
 //! # Dual API Support Example
-//! 
+//!
 //! This example demonstrates the dual API support (legacy + typed),
 //! including typed methods, retry logic, and enhanced error handling.
 
@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         timeout: 60, // 60 seconds timeout
         ..Default::default()
     };
-    
+
     let advanced_client = KiteConnect::new_with_config("your_api_key", custom_config);
     println!("   ✓ Advanced client created with custom configuration\n");
 
@@ -46,12 +46,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Note: These methods would normally make actual API calls
     // For demonstration, we're just showing the method signatures
-    
+
     println!("   Legacy API methods (returning JsonValue):");
     println!("   - client.holdings().await?              -> Result<JsonValue>");
     println!("   - client.positions().await?             -> Result<JsonValue>");
     println!("   - client.margins(None).await?           -> Result<JsonValue>");
-    
+
     println!("\n   New Typed API methods (returning structured data):");
     println!("   - client.holdings_typed().await?        -> KiteResult<Vec<Holding>>");
     println!("   - client.positions_typed().await?       -> KiteResult<Vec<Position>>");
@@ -61,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n5. Request monitoring:");
     let initial_count = advanced_client.request_count();
     println!("   Initial request count: {}", initial_count);
-    
+
     // Example 6: GTT Operations
     println!("\n6. GTT (Good Till Triggered) Operations:");
     println!("   - client.get_gtts(None).await?          -> Result<JsonValue>");

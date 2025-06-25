@@ -1,6 +1,6 @@
 /*!
  * Portfolio module for KiteConnect API v1.0.0
- * 
+ *
  * This module contains all portfolio-related data structures:
  * - Holdings (stocks and securities held)
  * - Positions (intraday and overnight positions)  
@@ -8,11 +8,11 @@
  * - P&L calculations
  */
 
+pub mod conversions;
 pub mod holdings;
 pub mod positions;
-pub mod conversions;
 
 // Re-export all public types
+pub use conversions::*;
 pub use holdings::*;
 pub use positions::*;
-pub use conversions::*;

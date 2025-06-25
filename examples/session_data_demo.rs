@@ -1,5 +1,5 @@
-use serde_json::json;
 use kiteconnect_async_wasm::models::auth::SessionData;
+use serde_json::json;
 
 fn main() {
     println!("=== KiteConnect SessionData Model Demo ===\n");
@@ -27,8 +27,8 @@ fn main() {
     });
 
     // Deserialize JSON to SessionData struct
-    let session: SessionData = serde_json::from_value(session_json)
-        .expect("Failed to deserialize session data");
+    let session: SessionData =
+        serde_json::from_value(session_json).expect("Failed to deserialize session data");
 
     println!("📊 Session Information:");
     println!("   User ID: {}", session.user_id);
@@ -38,7 +38,7 @@ fn main() {
     println!("   User Type: {}", session.user_type);
     println!("   Broker: {}", session.broker);
     println!("   Login Time: {}", session.login_time);
-    
+
     if let Some(avatar_url) = &session.avatar_url {
         println!("   Avatar URL: {}", avatar_url);
     }
@@ -50,14 +50,16 @@ fn main() {
 
     println!("\n🔑 Authentication Tokens:");
     println!("   API Key: {}", session.api_key);
-    println!("   Access Token: {}...{}", 
-             &session.access_token[..8], 
-             &session.access_token[session.access_token.len()-8..]);
-    
+    println!(
+        "   Access Token: {}...{}",
+        &session.access_token[..8],
+        &session.access_token[session.access_token.len() - 8..]
+    );
+
     if !session.public_token.is_empty() {
         println!("   Public Token: {}...", &session.public_token[..8]);
     }
-    
+
     if !session.refresh_token.is_empty() {
         println!("   Refresh Token: {}...", &session.refresh_token[..8]);
     }
@@ -77,11 +79,11 @@ fn main() {
     }
 
     println!("\n✅ SessionData model successfully handles all KiteConnect session fields!");
-    
+
     // Demonstrate serialization back to JSON
-    let serialized = serde_json::to_string_pretty(&session)
-        .expect("Failed to serialize session data");
-    
+    let serialized =
+        serde_json::to_string_pretty(&session).expect("Failed to serialize session data");
+
     println!("\n📤 Serialized Session Data:");
     println!("{}", serialized);
 }

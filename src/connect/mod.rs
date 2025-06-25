@@ -1,84 +1,84 @@
 //! # KiteConnect API Client Module
-//! 
+//!
 //! This module provides the main [`KiteConnect`] struct and associated methods for
 //! interacting with the Zerodha KiteConnect REST API.
-//! 
+//!
 //! ## Overview
-//! 
+//!
 //! The KiteConnect API allows you to build trading applications and manage portfolios
 //! programmatically. This module provides async methods for all supported endpoints.
-//! 
+//!
 //! ## Authentication Flow
-//! 
+//!
 //! 1. **Get Login URL**: Use [`KiteConnect::login_url`] to generate a login URL
 //! 2. **User Login**: Direct user to the URL to complete login
 //! 3. **Generate Session**: Use [`KiteConnect::generate_session`] with the request token
 //! 4. **API Access**: Use any API method with the authenticated client
-//! 
+//!
 //! ## Example Usage
-//! 
+//!
 //! ```rust,no_run
 //! use kiteconnect_async_wasm::connect::KiteConnect;
-//! 
+//!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut client = KiteConnect::new("your_api_key", "");
-//! 
+//!
 //! // Authentication
 //! let login_url = client.login_url();
 //! // ... user completes login and returns request_token ...
-//! 
+//!
 //! let session = client.generate_session("request_token", "api_secret").await?;
-//! 
+//!
 //! // Portfolio operations
 //! let holdings = client.holdings().await?;
 //! let positions = client.positions().await?;
 //! let margins = client.margins(None).await?;
-//! 
+//!
 //! // Order operations  
 //! let orders = client.orders().await?;
 //! let trades = client.trades().await?;
-//! 
+//!
 //! // Market data
 //! let instruments = client.instruments(None).await?;
 //! # Ok(())
 //! # }
 //! ```
 
-use serde_json::Value as JsonValue;
 use anyhow::{anyhow, Context, Result};
-use std::collections::HashMap;
 use reqwest::header::{HeaderMap, AUTHORIZATION, USER_AGENT};
-use std::sync::{Arc, atomic::AtomicU64};
-use std::time::Duration;
 use serde::de::DeserializeOwned;
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
+use std::sync::{atomic::AtomicU64, Arc};
+use std::time::Duration;
 
 // Import our typed models
 use crate::models::common::{KiteError, KiteResult};
 
 // Cache imports
 use std::sync::Mutex;
-use std::time::{SystemTime, Duration as StdDuration};
+use std::time::{Duration as StdDuration, SystemTime};
 
-// WASM platform imports  
+// WASM platform imports
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use web_sys::console;
 
 // Import sub-modules
-pub mod utils;
 pub mod auth;
-pub mod portfolio;
-pub mod orders;
+pub mod endpoints;
+pub mod gtt;
 pub mod market_data;
 pub mod mutual_funds;
-pub mod gtt;
-pub mod endpoints;
+pub mod orders;
+pub mod portfolio;
 pub mod rate_limiter;
+pub mod utils;
 
 // Re-export commonly used utilities
+pub use endpoints::{Endpoint, HttpMethod, KiteEndpoint, RateLimitCategory};
+pub use rate_limiter::{CategoryStats, RateLimiter, RateLimiterStats};
 pub use utils::{RequestHandler, URL};
-pub use endpoints::{KiteEndpoint, HttpMethod, RateLimitCategory, Endpoint};
-pub use rate_limiter::{RateLimiter, RateLimiterStats, CategoryStats};
 
 /// Configuration for retry behavior
 #[derive(Debug, Clone)]
@@ -175,49 +175,49 @@ impl Default for KiteConnectConfig {
 }
 
 /// Main client for interacting with the KiteConnect API
-/// 
+///
 /// This struct provides async methods for all KiteConnect REST API endpoints.
 /// It handles authentication, request formatting, and response parsing automatically.
-/// 
+///
 /// ## Thread Safety
-/// 
+///
 /// `KiteConnect` implements `Clone + Send + Sync`, making it safe to use across
 /// multiple threads and async tasks. The underlying HTTP client uses connection
 /// pooling for optimal performance.
-/// 
+///
 /// ## Example
-/// 
+///
 /// ```rust,no_run
 /// use kiteconnect_async_wasm::connect::KiteConnect;
-/// 
+///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a new client
 /// let mut client = KiteConnect::new("your_api_key", "");
-/// 
+///
 /// // Set access token (usually done via generate_session)
 /// client.set_access_token("your_access_token");
-/// 
+///
 /// // Use the API
 /// let holdings = client.holdings().await?;
 /// println!("Holdings: {:?}", holdings);
 /// # Ok(())
 /// # }
 /// ```
-/// 
+///
 /// ## Cloning for Concurrent Use
-/// 
+///
 /// ```rust,no_run
 /// use kiteconnect_async_wasm::connect::KiteConnect;
-/// 
+///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let client = KiteConnect::new("api_key", "access_token");
-/// 
+///
 /// // Clone for use in different tasks
 /// let client1 = client.clone();
 /// let client2 = client.clone();
-/// 
+///
 /// // Fetch data concurrently
 /// let (holdings, positions) = tokio::try_join!(
 ///     client1.holdings(),
@@ -240,7 +240,7 @@ pub struct KiteConnect {
     pub(crate) session_expiry_hook: Option<fn() -> ()>,
     /// HTTP client for making requests (shared and reusable)
     pub(crate) client: reqwest::Client,
-    
+
     // New fields for v1.0.0
     /// Retry configuration for failed requests
     pub(crate) retry_config: RetryConfig,
@@ -285,20 +285,20 @@ impl KiteConnect {
     }
 
     /// Creates a new KiteConnect client instance
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `api_key` - Your KiteConnect API key
     /// * `access_token` - Access token (can be empty string if using `generate_session`)
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use kiteconnect_async_wasm::connect::KiteConnect;
-    /// 
+    ///
     /// // Create client for authentication flow
     /// let mut client = KiteConnect::new("your_api_key", "");
-    /// 
+    ///
     /// // Or create with existing access token
     /// let client = KiteConnect::new("your_api_key", "your_access_token");
     /// ```
@@ -319,18 +319,18 @@ impl KiteConnect {
     }
 
     /// Creates a new KiteConnect client with custom configuration
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `api_key` - Your KiteConnect API key
     /// * `config` - Configuration for the client
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use kiteconnect_async_wasm::connect::{KiteConnect, KiteConnectConfig, RetryConfig};
     /// use std::time::Duration;
-    /// 
+    ///
     /// let config = KiteConnectConfig {
     ///     retry_config: RetryConfig {
     ///         max_retries: 5,
@@ -339,7 +339,7 @@ impl KiteConnect {
     ///     },
     ///     ..Default::default()
     /// };
-    /// 
+    ///
     /// let mut client = KiteConnect::new_with_config("your_api_key", config);
     /// client.set_access_token("your_access_token");
     /// ```
@@ -348,10 +348,10 @@ impl KiteConnect {
             .timeout(Duration::from_secs(config.timeout))
             .pool_max_idle_per_host(config.max_idle_connections)
             .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
-            .user_agent(&format!("kiteconnect-rust/{}", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("kiteconnect-rust/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("Failed to create HTTP client");
-            
+
         Self {
             api_key: api_key.to_string(),
             access_token: String::new(),
@@ -363,8 +363,10 @@ impl KiteConnect {
             cache_config: config.cache_config.clone(),
             request_counter: Arc::new(AtomicU64::new(0)),
             response_cache: Arc::new(Mutex::new(
-                config.cache_config.as_ref()
-                    .map(|c| ResponseCache::new(c.cache_ttl_minutes))
+                config
+                    .cache_config
+                    .as_ref()
+                    .map(|c| ResponseCache::new(c.cache_ttl_minutes)),
             )),
             rate_limiter: rate_limiter::RateLimiter::new(config.enable_rate_limiting),
         }
@@ -379,19 +381,21 @@ impl KiteConnect {
             let status_code = resp.status().as_u16();
             let status = status_code.to_string();
             let error_text = resp.text().await?;
-            
+
             // Try to parse as JSON to extract error details
             if let Ok(error_json) = serde_json::from_str::<JsonValue>(&error_text) {
-                let message = error_json["message"].as_str()
+                let message = error_json["message"]
+                    .as_str()
                     .unwrap_or(&error_text)
                     .to_string();
-                let error_type = error_json["error_type"].as_str()
-                    .map(|s| s.to_string());
-                
-                let kite_error = KiteError::from_api_response(status_code, status, message, error_type);
+                let error_type = error_json["error_type"].as_str().map(|s| s.to_string());
+
+                let kite_error =
+                    KiteError::from_api_response(status_code, status, message, error_type);
                 Err(anyhow::Error::new(kite_error))
             } else {
-                let kite_error = KiteError::from_api_response(status_code, status, error_text, None);
+                let kite_error =
+                    KiteError::from_api_response(status_code, status, error_text, None);
                 Err(anyhow::Error::new(kite_error))
             }
         }
@@ -405,53 +409,64 @@ impl KiteConnect {
         data: Option<HashMap<&str, &str>>,
     ) -> KiteResult<reqwest::Response> {
         let mut last_error = None;
-        
+
         for attempt in 0..=self.retry_config.max_retries {
             // Increment request counter
-            self.request_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            
+            self.request_counter
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
             match self.send_request(url.clone(), method, data.clone()).await {
                 Ok(response) => {
                     // Check if response indicates an error that should be retried
                     if response.status().is_server_error() || response.status() == 429 {
                         let status = response.status().as_u16().to_string();
-                        let error_text = response.text().await
+                        let error_text = response
+                            .text()
+                            .await
                             .unwrap_or_else(|_| "Unknown server error".to_string());
-                        
+
                         let error = KiteError::Api {
                             status,
                             message: error_text,
                             error_type: Some("ServerError".to_string()),
                         };
-                        
+
                         if attempt < self.retry_config.max_retries && self.should_retry(&error) {
                             last_error = Some(error);
                             let delay = self.calculate_retry_delay(attempt);
-                            
+
                             #[cfg(feature = "debug")]
-                            log::debug!("Request failed, retrying in {:?}. Attempt {}/{}", 
-                                delay, attempt + 1, self.retry_config.max_retries);
-                            
+                            log::debug!(
+                                "Request failed, retrying in {:?}. Attempt {}/{}",
+                                delay,
+                                attempt + 1,
+                                self.retry_config.max_retries
+                            );
+
                             tokio::time::sleep(delay).await;
                             continue;
                         } else {
                             return Err(error);
                         }
                     }
-                    
+
                     return Ok(response);
                 }
                 Err(e) => {
                     let kite_error = KiteError::Legacy(e);
-                    
+
                     if attempt < self.retry_config.max_retries && self.should_retry(&kite_error) {
                         last_error = Some(kite_error);
                         let delay = self.calculate_retry_delay(attempt);
-                        
+
                         #[cfg(feature = "debug")]
-                        log::debug!("Request failed, retrying in {:?}. Attempt {}/{}", 
-                            delay, attempt + 1, self.retry_config.max_retries);
-                        
+                        log::debug!(
+                            "Request failed, retrying in {:?}. Attempt {}/{}",
+                            delay,
+                            attempt + 1,
+                            self.retry_config.max_retries
+                        );
+
                         tokio::time::sleep(delay).await;
                         continue;
                     } else {
@@ -460,54 +475,67 @@ impl KiteConnect {
                 }
             }
         }
-        
+
         // If we've exhausted all retries, return the last error
-        Err(last_error.unwrap_or_else(|| KiteError::General("All retry attempts failed".to_string())))
+        Err(last_error
+            .unwrap_or_else(|| KiteError::General("All retry attempts failed".to_string())))
     }
 
     /// Enhanced JSON response handler with better error handling
-    pub(crate) async fn raise_or_return_json_typed(&self, resp: reqwest::Response) -> KiteResult<JsonValue> {
+    pub(crate) async fn raise_or_return_json_typed(
+        &self,
+        resp: reqwest::Response,
+    ) -> KiteResult<JsonValue> {
         if resp.status().is_success() {
-            resp.json().await.map_err(|e| KiteError::Http(e))
+            resp.json().await.map_err(KiteError::Http)
         } else {
             let status_code = resp.status().as_u16();
             let status = status_code.to_string();
-            let error_text = resp.text().await
-                .map_err(KiteError::Http)?;
-            
+            let error_text = resp.text().await.map_err(KiteError::Http)?;
+
             // Try to parse as JSON to extract error details
             if let Ok(error_json) = serde_json::from_str::<JsonValue>(&error_text) {
-                let message = error_json["message"].as_str()
+                let message = error_json["message"]
+                    .as_str()
                     .unwrap_or(&error_text)
                     .to_string();
-                let error_type = error_json["error_type"].as_str()
-                    .map(|s| s.to_string());
-                
-                Err(KiteError::from_api_response(status_code, status, message, error_type))
+                let error_type = error_json["error_type"].as_str().map(|s| s.to_string());
+
+                Err(KiteError::from_api_response(
+                    status_code,
+                    status,
+                    message,
+                    error_type,
+                ))
             } else {
-                Err(KiteError::from_api_response(status_code, status, error_text, None))
+                Err(KiteError::from_api_response(
+                    status_code,
+                    status,
+                    error_text,
+                    None,
+                ))
             }
         }
     }
 
     /// Sets a session expiry callback hook for this instance
-    /// 
+    ///
     /// This hook will be called when a session expires, allowing you to handle
     /// re-authentication or cleanup logic.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `method` - Callback function to execute on session expiry
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use kiteconnect_async_wasm::connect::KiteConnect;
-    /// 
+    ///
     /// fn handle_session_expiry() {
     ///     println!("Session expired! Please re-authenticate.");
     /// }
-    /// 
+    ///
     /// let mut client = KiteConnect::new("api_key", "access_token");
     /// client.set_session_expiry_hook(handle_session_expiry);
     /// ```
@@ -516,30 +544,30 @@ impl KiteConnect {
     }
 
     /// Gets the current session expiry hook
-    /// 
+    ///
     /// Returns the session expiry callback function if one has been set.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `Option<fn() -> ()>` - The callback function, or `None` if not set
     pub fn session_expiry_hook(&self) -> Option<fn() -> ()> {
         self.session_expiry_hook
     }
 
     /// Sets the access token for authenticated API requests
-    /// 
+    ///
     /// This is typically called automatically by `generate_session`, but can
     /// be used manually if you have a pre-existing access token.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `access_token` - The access token string
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// use kiteconnect_async_wasm::connect::KiteConnect;
-    /// 
+    ///
     /// let mut client = KiteConnect::new("api_key", "");
     /// client.set_access_token("your_access_token");
     /// ```
@@ -553,12 +581,11 @@ impl KiteConnect {
     }
 
     /// Internal helper method for parsing JSON responses to typed models
-    /// 
+    ///
     /// This method converts JsonValue responses from legacy API methods
     /// into strongly typed model structs for the new typed API methods.
     fn parse_response<T: DeserializeOwned>(&self, response: JsonValue) -> KiteResult<T> {
-        serde_json::from_value(response)
-            .map_err(|e| KiteError::Json(e))
+        serde_json::from_value(response).map_err(KiteError::Json)
     }
 
     /// Determines if a request should be retried based on the error type
@@ -578,7 +605,8 @@ impl KiteConnect {
 
     /// Gets the current request count for monitoring
     pub fn request_count(&self) -> u64 {
-        self.request_counter.load(std::sync::atomic::Ordering::Relaxed)
+        self.request_counter
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Get rate limiter statistics for monitoring
@@ -629,52 +657,72 @@ impl KiteConnect {
         } else {
             format!("{}/{}", config.path, path_segments.join("/"))
         };
-        
+
         let url = self.build_url(&full_path, query_params);
-        
+
         // Use existing retry logic
-        self.send_request_with_retry(url, config.method.as_str(), data).await
+        self.send_request_with_retry(url, config.method.as_str(), data)
+            .await
     }
 }
 
 /// Implement the async request handler for KiteConnect struct
 impl RequestHandler for KiteConnect {
-    fn send_request(
+    async fn send_request(
         &self,
         url: reqwest::Url,
         method: &str,
         data: Option<HashMap<&str, &str>>,
-    ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send {
-        async move {
-            #[cfg(feature = "debug")]
-            log::debug!("Sending {} request to: {}", method, url);
-            
-            #[cfg(all(feature = "debug", feature = "wasm", target_arch = "wasm32"))]
-            console::log_1(&format!("KiteConnect: {} {}", method, url).into());
+    ) -> Result<reqwest::Response> {
+        #[cfg(feature = "debug")]
+        log::debug!("Sending {} request to: {}", method, url);
 
-            let mut headers = HeaderMap::new();
-            headers.insert("XKiteVersion", "3".parse().unwrap());
-            headers.insert(
-                AUTHORIZATION,
-                format!("token {}:{}", self.api_key, self.access_token)
-                    .parse()
-                    .unwrap(),
-            );
-            headers.insert(USER_AGENT, "Rust".parse().unwrap());
+        #[cfg(all(feature = "debug", feature = "wasm", target_arch = "wasm32"))]
+        console::log_1(&format!("KiteConnect: {} {}", method, url).into());
 
-            let response = match method {
-                "GET" => self.client.get(url).headers(headers).send().await?,
-                "POST" => self.client.post(url).headers(headers).form(&data).send().await?,
-                "DELETE" => self.client.delete(url).headers(headers).json(&data).send().await?,
-                "PUT" => self.client.put(url).headers(headers).form(&data).send().await?,
-                _ => return Err(anyhow!("Unknown method!")),
-            };
+        let mut headers = HeaderMap::new();
+        headers.insert("XKiteVersion", "3".parse().unwrap());
+        headers.insert(
+            AUTHORIZATION,
+            format!("token {}:{}", self.api_key, self.access_token)
+                .parse()
+                .unwrap(),
+        );
+        headers.insert(USER_AGENT, "Rust".parse().unwrap());
 
-            #[cfg(feature = "debug")]
-            log::debug!("Response status: {}", response.status());
+        let response = match method {
+            "GET" => self.client.get(url).headers(headers).send().await?,
+            "POST" => {
+                self.client
+                    .post(url)
+                    .headers(headers)
+                    .form(&data)
+                    .send()
+                    .await?
+            }
+            "DELETE" => {
+                self.client
+                    .delete(url)
+                    .headers(headers)
+                    .json(&data)
+                    .send()
+                    .await?
+            }
+            "PUT" => {
+                self.client
+                    .put(url)
+                    .headers(headers)
+                    .form(&data)
+                    .send()
+                    .await?
+            }
+            _ => return Err(anyhow!("Unknown method!")),
+        };
 
-            Ok(response)
-        }
+        #[cfg(feature = "debug")]
+        log::debug!("Response status: {}", response.status());
+
+        Ok(response)
     }
 }
 
@@ -688,8 +736,7 @@ mod tests {
         let url = kiteconnect.build_url("/my-holdings", None);
         assert_eq!(url.as_str(), format!("{}/my-holdings", URL).as_str());
 
-        let mut params: Vec<(&str, &str)> = Vec::new();
-        params.push(("one", "1"));
+        let params: Vec<(&str, &str)> = vec![("one", "1")];
         let url = kiteconnect.build_url("/my-holdings", Some(params));
         assert_eq!(url.as_str(), format!("{}/my-holdings?one=1", URL).as_str());
     }
@@ -707,7 +754,7 @@ mod tests {
         let mut kiteconnect = KiteConnect::new("key", "token");
         assert_eq!(kiteconnect.session_expiry_hook(), None);
 
-        fn mock_hook() { 
+        fn mock_hook() {
             println!("Session expired");
         }
 
@@ -718,7 +765,10 @@ mod tests {
     #[tokio::test]
     async fn test_login_url() {
         let kiteconnect = KiteConnect::new("key", "token");
-        assert_eq!(kiteconnect.login_url(), "https://kite.trade/connect/login?api_key=key&v3");
+        assert_eq!(
+            kiteconnect.login_url(),
+            "https://kite.trade/connect/login?api_key=key&v3"
+        );
     }
 
     // Test implementations for the various modules can be added here

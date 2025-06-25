@@ -5,7 +5,7 @@ This module provides fully typed data models for all KiteConnect API operations.
 The models are organized into domain-specific submodules:
 
 - **`common`**: Shared types, enums, errors, and response wrappers
-- **`auth`**: Authentication, sessions, user profiles, and margins  
+- **`auth`**: Authentication, sessions, user profiles, and margins
 - **`orders`**: Order management, trades, and order-related types
 - **`portfolio`**: Holdings, positions, and portfolio conversions
 - **`market_data`**: Instruments, quotes, market depth, and historical data
@@ -105,109 +105,193 @@ pub use common::*;
 /// Prelude module for convenient imports
 pub mod prelude {
     //! Import commonly used types with a single `use` statement
-    //! 
+    //!
     //! ```rust
     //! use kiteconnect_async_wasm::models::prelude::*;
     //! ```
-    
+
     // Common types
     pub use super::common::{
-        // Error types
-        KiteError, KiteResult,
-        
-        // Response types  
-        KiteResponse, RawResponse, Status,
-        
         // Common enums
-        Exchange, Product, Validity, TransactionType, OrderType,
-        Variety, InstrumentType, GttStatus, Interval,
+        Exchange,
+        GttStatus,
+        InstrumentType,
+        Interval,
+        // Error types
+        KiteError,
+        // Response types
+        KiteResponse,
+        KiteResult,
+
+        OrderType,
+        Product,
+        RawResponse,
+        Status,
+
+        TransactionType,
+        Validity,
+        Variety,
     };
-    
+
     // Authentication types
     pub use super::auth::{
-        // Session management
-        SessionData, SessionMeta, LoginUrlConfig, RequestToken, LogoutResponse,
-        
-        // User profiles
-        UserProfile, UserMeta, UserType, AccountStatus,
-        
+        AccountStatus,
+
+        FundTransaction,
+        LoginUrlConfig,
+        LogoutResponse,
+
         // Margin data
-        MarginData, SegmentMargin, MarginFunds, MarginUtilisation,
-        TradingSegment, FundTransaction,
+        MarginData,
+        MarginFunds,
+        MarginUtilisation,
+        RequestToken,
+        SegmentMargin,
+        // Session management
+        SessionData,
+        SessionMeta,
+        TradingSegment,
+        UserMeta,
+        // User profiles
+        UserProfile,
+        UserType,
     };
-    
+
     // Order types
     pub use super::orders::{
+        BracketOrderBuilder,
+        BracketOrderParams,
+        BracketOrderResponse,
+        CoverOrderParams,
+        CoverOrderResponse,
         // Order data
-        Order, OrderStatus, OrderMeta,
-        
-        // Order parameters and builders
-        OrderParams, OrderBuilder, BracketOrderParams, BracketOrderBuilder,
-        CoverOrderParams, OrderModifyParams,
-        
-        // Order history and trades
-        Trade, OrderHistoryEntry, OrderHistory, TradeHistory,
-        OrderBook, TradeBook, OrderResponse,
-        
+        Order,
+        OrderBook,
+        OrderBuilder,
+        OrderCancellation,
+        OrderHistory,
+        OrderHistoryEntry,
+        OrderMeta,
+
         // Order operations
-        OrderModification, OrderCancellation, BracketOrderResponse, CoverOrderResponse,
+        OrderModification,
+        OrderModifyParams,
+
+        // Order parameters and builders
+        OrderParams,
+        OrderResponse,
+
+        OrderStatus,
+        // Order history and trades
+        Trade,
+        TradeBook,
+        TradeHistory,
     };
-    
+
     // Portfolio types
     pub use super::portfolio::{
-        // Holdings
-        Holding, HoldingsSummary, PortfolioProfile,
-        
-        // Positions
-        Position, PositionType, PositionsSummary, PositionConversionRequest,
-        
+        BulkConversionRequest,
+        BulkConversionResponse,
+        ConversionRequest,
+        ConversionResponse,
+        ConversionResult,
         // Conversions
-        ConversionType, ConversionRequest, ConversionResponse,
-        BulkConversionRequest, BulkConversionResponse, ConversionResult,
+        ConversionType,
+        // Holdings
+        Holding,
+        HoldingsSummary,
+        PortfolioProfile,
+
+        // Positions
+        Position,
+        PositionConversionRequest,
+
+        PositionType,
+        PositionsSummary,
     };
-    
+
     // Market data types
     pub use super::market_data::{
-        // Instruments
-        Instrument, MarketStatus, MarketState, InstrumentSearch, InstrumentLookup,
-        
-        // Quotes
-        Quote, OHLC, LTP, QuoteRequest, HistoricalQuote, OHLCV,
-        
-        // Market depth
-        MarketDepth, DepthItem, MarketDepthFull, DepthLevel, Level2Data,
-        
+        Candle,
+        DepthItem,
+        DepthLevel,
+        HistoricalData,
         // Historical data
-        HistoricalDataRequest, Candle, HistoricalData, HistoricalMetadata,
+        HistoricalDataRequest,
+        HistoricalMetadata,
+        HistoricalQuote,
+        // Instruments
+        Instrument,
+        InstrumentLookup,
+
+        InstrumentSearch,
+        Level2Data,
+
+        // Market depth
+        MarketDepth,
+        MarketDepthFull,
+        MarketState,
+        MarketStatus,
+        // Quotes
+        Quote,
+        QuoteRequest,
+        LTP,
+        OHLC,
+        OHLCV,
     };
-    
+
     // Mutual funds types
     pub use super::mutual_funds::{
-        // MF instruments
-        MFInstrument, MFPerformance, MFInstrumentSearch,
-        
-        // MF orders
-        MFOrder, MFOrderParams, MFOrderStatus, MFOrderResponse, MFOrders,
-        
         // MF holdings
-        MFHolding, MFHoldings, MFPortfolioSummary,
-        
+        MFHolding,
+        MFHoldings,
+        // MF instruments
+        MFInstrument,
+        MFInstrumentSearch,
+
+        // MF orders
+        MFOrder,
+        MFOrderParams,
+        MFOrderResponse,
+        MFOrderStatus,
+        MFOrders,
+
+        MFPerformance,
+        MFPortfolioSummary,
+
+        SIPFrequency,
+        SIPModifyParams,
+        SIPParams,
+        SIPResponse,
+        SIPStatus,
+        SIPStepUp,
+        SIPs,
         // SIPs
-        SIP, SIPParams, SIPStatus, SIPFrequency, SIPStepUp, SIPModifyParams, 
-        SIPResponse, SIPs,
+        SIP,
     };
-    
+
     // GTT types
     pub use super::gtt::{
-        // GTT triggers
-        GTT, GTTCondition, GTTOrderParams, GTTOrderResult, GTTTriggerType,
-        GTTCreateParams, GTTModifyParams, GTTResponse, GTTs,
-        
+        BracketGTTBuilder,
+
         // GTT builders
-        GTTBuilder, GTTOrderBuilder, GTTConditionBuilder,
-        StopLossGTTBuilder, TargetGTTBuilder, BracketGTTBuilder,
-        
+        GTTBuilder,
+        GTTCondition,
+        GTTConditionBuilder,
+        GTTCreateParams,
+        GTTModifyParams,
+        GTTOrderBuilder,
+        GTTOrderParams,
+        GTTOrderResult,
+        GTTResponse,
         // GTT templates
         GTTTemplate,
+        GTTTriggerType,
+        GTTs,
+
+        StopLossGTTBuilder,
+        TargetGTTBuilder,
+        // GTT triggers
+        GTT,
     };
 }
