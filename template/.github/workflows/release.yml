@@ -1,0 +1,256 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  CARGO_TERM_COLOR: always
+  CRATE_NAME: your-crate-name
+
+permissions:
+  contents: write  # Required to create tags and releases
+  packages: read   # Required for caching
+
+jobs:
+  check-tag:
+    name: Check if release tag exists
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag-check.outputs.version }}
+      tag-exists: ${{ steps.tag-check.outputs.tag-exists }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all tags
+    
+    - name: Check tag existence
+      id: tag-check
+      run: |
+        # Get current version from Cargo.toml
+        CURRENT_VERSION=$(grep "^version" Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+        
+        # Check if tag already exists
+        if git tag | grep -q "^v$CURRENT_VERSION$"; then
+          echo "tag-exists=true" >> $GITHUB_OUTPUT
+          echo "Tag v$CURRENT_VERSION already exists - skipping release"
+        else
+          echo "tag-exists=false" >> $GITHUB_OUTPUT
+          echo "Tag v$CURRENT_VERSION does not exist - proceeding with release"
+        fi
+
+  test:
+    name: Test Before Release
+    runs-on: ubuntu-latest
+    needs: check-tag
+    if: needs.check-tag.outputs.tag-exists == 'false'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Run tests
+      run: cargo test --all-features
+
+    - name: Run doc tests
+      run: cargo test --doc --all-features
+      
+    - name: Verify build
+      run: cargo build --release --all-features
+
+  create-tag:
+    name: Create Git Tag
+    runs-on: ubuntu-latest
+    needs: [check-tag, test]
+    if: needs.check-tag.outputs.tag-exists == 'false'
+    outputs:
+      tag: v${{ needs.check-tag.outputs.version }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Create and push tag
+      run: |
+        VERSION="${{ needs.check-tag.outputs.version }}"
+        TAG="v$VERSION"
+        
+        echo "Creating tag: $TAG"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        git tag -a "$TAG" -m "Release version $VERSION
+
+        🚀 Automated release created from version in Cargo.toml
+        
+        This release was automatically created when the version in Cargo.toml 
+        was updated to $VERSION and merged to the main branch."
+        
+        git push origin "$TAG"
+        echo "Tag $TAG created and pushed successfully"
+
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [check-tag, create-tag]
+    if: needs.check-tag.outputs.tag-exists == 'false'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Dry run publish
+      run: cargo publish --dry-run
+    
+    - name: Publish to crates.io
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      run: |
+        if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+          echo "Error: CARGO_REGISTRY_TOKEN secret is not set"
+          echo "Please add your crates.io API token as a GitHub secret named 'CARGO_REGISTRY_TOKEN'"
+          exit 1
+        fi
+        echo "Publishing version ${{ needs.check-tag.outputs.version }} to crates.io..."
+        cargo publish --token "$CARGO_REGISTRY_TOKEN"
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [check-tag, create-tag, publish]
+    if: needs.check-tag.outputs.tag-exists == 'false'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for changelog generation
+    
+    - name: Extract release notes
+      id: extract-release-notes
+      run: |
+        VERSION="${{ needs.check-tag.outputs.version }}"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Try to extract release notes from CHANGELOG.md if it exists
+        if [ -f CHANGELOG.md ]; then
+          echo "Extracting release notes from CHANGELOG.md for version $VERSION"
+          
+          # Extract the section for this version
+          awk -v version="$VERSION" '
+            /^## / { 
+              if (found) exit
+              if ($0 ~ version) {
+                found=1
+                next
+              }
+              next
+            }
+            found && /^## / { exit }
+            found && !/^[[:space:]]*$/ { print }
+          ' CHANGELOG.md > release_notes.txt
+          
+          if [ -s release_notes.txt ]; then
+            echo "Found release notes in CHANGELOG.md:"
+            cat release_notes.txt
+          else
+            echo "No specific release notes found for version $VERSION in CHANGELOG.md"
+            echo "Creating default release notes..."
+            {
+              echo "## Release v$VERSION"
+              echo ""
+              echo "This release was automatically created when version $VERSION was merged to the main branch."
+              echo ""
+              echo "### What's Changed"
+              echo "- Version updated to $VERSION in Cargo.toml"
+              echo ""
+              echo "### Installation"
+              echo "Add this to your \`Cargo.toml\`:"
+              echo "\`\`\`toml"
+              echo "[dependencies]"
+              echo "${{ env.CRATE_NAME }} = \"$VERSION\""
+              echo "\`\`\`"
+              echo ""
+              echo "For more details, see the [documentation](https://docs.rs/${{ env.CRATE_NAME }}/$VERSION/)."
+            } > release_notes.txt
+          fi
+        else
+          echo "No CHANGELOG.md found, creating default release notes..."
+          {
+            echo "## Release v$VERSION"
+            echo ""
+            echo "This release was automatically created when version $VERSION was merged to the main branch."
+            echo ""
+            echo "### Installation"
+            echo "Add this to your \`Cargo.toml\`:"
+            echo "\`\`\`toml"
+            echo "[dependencies]"
+            echo "${{ env.CRATE_NAME }} = \"$VERSION\""
+            echo "\`\`\`"
+            echo ""
+            echo "For more details, see the [documentation](https://docs.rs/${{ env.CRATE_NAME }}/$VERSION/)."
+          } > release_notes.txt
+        fi
+        
+        echo "Final release notes:"
+        cat release_notes.txt
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.check-tag.outputs.version }}
+        name: Release v${{ needs.check-tag.outputs.version }}
+        body_path: release_notes.txt
+        draft: false
+        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [check-tag, github-release]
+    if: always()
+    steps:
+    - name: Print summary
+      run: |
+        echo "🏷️  Release Summary"
+        echo "=================="
+        echo "Version: ${{ needs.check-tag.outputs.version }}"
+        echo "Tag exists: ${{ needs.check-tag.outputs.tag-exists }}"
+        
+        if [ "${{ needs.check-tag.outputs.tag-exists }}" == "false" ]; then
+          echo "✅ Release v${{ needs.check-tag.outputs.version }} created successfully!"
+          echo "🚀 Published to crates.io"
+          echo "📋 GitHub release created"
+          echo "🏷️  Git tag v${{ needs.check-tag.outputs.version }} created"
+        else
+          echo "ℹ️  Tag v${{ needs.check-tag.outputs.version }} already exists, skipping release"
+        fi
