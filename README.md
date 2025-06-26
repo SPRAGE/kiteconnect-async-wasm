@@ -409,7 +409,7 @@ This repository uses automated releases:
 ./scripts/bump-version.sh patch
 
 # Example: Bump to specific version  
-./scripts/bump-version.sh 1.0.3
+./scripts/bump-version.sh 1.0.4
 ```
 
 ## 📄 License
