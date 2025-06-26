@@ -254,7 +254,7 @@ async fn demonstrate_rate_limiter_stats() -> Result<(), Box<dyn std::error::Erro
 /// Example of how endpoints would be used in actual API methods
 #[allow(dead_code)]
 async fn example_api_method_usage() -> Result<(), Box<dyn std::error::Error>> {
-    let client = KiteConnect::new("api_key", "access_token");
+    let _client = KiteConnect::new("api_key", "access_token");
 
     // This is how API methods would use the new endpoint system:
     // Note: This is pseudocode as we haven't updated the actual API methods yet

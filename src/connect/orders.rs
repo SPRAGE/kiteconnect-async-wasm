@@ -1,6 +1,466 @@
 //! # Orders Module
 //!
-//! This module contains order management methods for the KiteConnect API.
+//! This module provides comprehensive order management capabilities for the KiteConnect API v1.0.3,
+//! offering complete control over trade execution with both simple and advanced order types.
+//!
+//! ## Overview
+//!
+//! The orders module is the core component for executing trades on the KiteConnect platform.
+//! It provides access to order placement, modification, cancellation, and monitoring with
+//! both legacy JSON-based and modern strongly-typed APIs for enhanced developer experience.
+//!
+//! ## Key Features
+//!
+//! ### 🔄 **Dual API Support**
+//! - **Legacy API**: Returns `JsonValue` for backward compatibility
+//! - **Typed API**: Returns structured types with compile-time safety (methods ending in `_typed`)
+//!
+//! ### 📊 **Complete Order Management**
+//! - **Order Placement**: Market, limit, stop-loss, and bracket orders
+//! - **Order Modification**: Update price, quantity, and order parameters
+//! - **Order Cancellation**: Cancel pending orders and exit positions
+//! - **Order Monitoring**: Real-time status updates and fill information
+//!
+//! ### 💡 **Advanced Order Types**
+//! - **Regular Orders**: Basic buy/sell orders
+//! - **Bracket Orders**: Auto stop-loss and profit booking
+//! - **Cover Orders**: Built-in stop-loss protection
+//! - **Iceberg Orders**: Large order execution in smaller chunks
+//! - **GTT Orders**: Good Till Triggered conditional orders
+//!
+//! ### 🛠️ **Builder Patterns**
+//! - **OrderBuilder**: Fluent API for constructing orders
+//! - **BracketOrderBuilder**: Specialized builder for bracket orders
+//! - **Type Safety**: Compile-time validation of order parameters
+//!
+//! ## Available Methods
+//!
+//! ### Order Placement
+//! - [`place_order()`](KiteConnect::place_order) / [`place_order_typed()`](KiteConnect::place_order_typed) - Place new orders
+//! - [`modify_order()`](KiteConnect::modify_order) - Modify existing orders
+//! - [`cancel_order()`](KiteConnect::cancel_order) - Cancel pending orders
+//!
+//! ### Order Information
+//! - [`orders()`](KiteConnect::orders) / [`orders_typed()`](KiteConnect::orders_typed) - Get all orders
+//! - [`order_history()`](KiteConnect::order_history) - Get order execution history
+//! - [`trades()`](KiteConnect::trades) / [`trades_typed()`](KiteConnect::trades_typed) - Get trade book
+//!
+//! ### Position Management
+//! - [`convert_position()`](KiteConnect::convert_position) - Convert product types
+//! - Position tracking and P&L monitoring
+//!
+//! ## Usage Examples
+//!
+//! ### Basic Order Placement
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::orders::OrderParams;
+//! use kiteconnect_async_wasm::models::common::{Exchange, TransactionType, OrderType, Product, Validity};
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Method 1: Direct order parameters
+//! let order_params = OrderParams {
+//!     exchange: Exchange::NSE,
+//!     trading_symbol: "RELIANCE".to_string(),
+//!     transaction_type: TransactionType::BUY,
+//!     quantity: 10,
+//!     order_type: OrderType::LIMIT,
+//!     product: Product::CNC,
+//!     price: Some(2500.0),
+//!     validity: Some(Validity::DAY),
+//!     disclosed_quantity: None,
+//!     trigger_price: None,
+//!     tag: Some("MyOrder".to_string()),
+//!     squareoff: None,
+//!     stoploss: None,
+//!     trailing_stoploss: None,
+//!     market_protection: None,
+//!     iceberg_legs: None,
+//!     iceberg_quantity: None,
+//!     auction_number: None,
+//! };
+//!
+//! let response = client.place_order_typed("regular", &order_params).await?;
+//! println!("🎯 Order placed successfully!");
+//! println!("   Order ID: {}", response.order_id);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Using Order Builder (Recommended)
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::orders::OrderBuilder;
+//! use kiteconnect_async_wasm::models::common::{Exchange, TransactionType, OrderType, Product, Validity};
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Fluent builder pattern for better ergonomics
+//! let order = OrderBuilder::new()
+//!     .trading_symbol("TCS")
+//!     .exchange(Exchange::NSE)
+//!     .transaction_type(TransactionType::BUY)
+//!     .quantity(5)
+//!     .order_type(OrderType::MARKET)
+//!     .product(Product::MIS)
+//!     .validity(Validity::DAY)
+//!     .tag("QuickBuy")
+//!     .build()?;
+//!
+//! let response = client.place_order_typed("regular", &order).await?;
+//! println!("🚀 Market order executed!");
+//! println!("   Order ID: {}", response.order_id);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Advanced Order Types
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::orders::{OrderBuilder, BracketOrderBuilder};
+//! use kiteconnect_async_wasm::models::common::{Exchange, TransactionType, OrderType, Product};
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Stop-Loss Order
+//! let sl_order = OrderBuilder::new()
+//!     .trading_symbol("INFY")
+//!     .exchange(Exchange::NSE)
+//!     .transaction_type(TransactionType::SELL)
+//!     .quantity(20)
+//!     .order_type(OrderType::SL)
+//!     .product(Product::MIS)
+//!     .price(1450.0)
+//!     .trigger_price(1440.0)
+//!     .build()?;
+//!
+//! let sl_response = client.place_order_typed("regular", &sl_order).await?;
+//! println!("🛡️ Stop-loss order placed: {}", sl_response.order_id);
+//!
+//! // Bracket Order (Buy with auto profit booking and stop-loss)
+//! let bracket_order = BracketOrderBuilder::new()
+//!     .trading_symbol("HDFC")
+//!     .exchange(Exchange::NSE)
+//!     .transaction_type(TransactionType::BUY)
+//!     .quantity(10)
+//!     .price(1600.0)
+//!     .squareoff(1650.0)    // Take profit at +50
+//!     .stoploss(1580.0)     // Stop loss at -20
+//!     .trailing_stoploss(5.0) // Trail by 5 points
+//!     .build()?;
+//!
+//! let bo_response = client.place_order_typed("bo", &bracket_order.order_params).await?;
+//! println!("🎯 Bracket order placed: {}", bo_response.order_id);
+//!
+//! // Iceberg Order (Large order in small chunks)
+//! let iceberg_order = OrderBuilder::new()
+//!     .trading_symbol("SBIN")
+//!     .exchange(Exchange::NSE)
+//!     .transaction_type(TransactionType::BUY)
+//!     .quantity(1000)        // Total quantity
+//!     .order_type(OrderType::LIMIT)
+//!     .product(Product::CNC)
+//!     .price(250.0)
+//!     .iceberg(10, 100)      // 10 legs of 100 shares each
+//!     .build()?;
+//!
+//! let iceberg_response = client.place_order_typed("iceberg", &iceberg_order).await?;
+//! println!("🧊 Iceberg order placed: {}", iceberg_response.order_id);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Order Monitoring and Management
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::orders::OrderStatus;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all orders for the day
+//! let orders = client.orders_typed().await?;
+//!
+//! println!("📋 Today's Orders ({}):", orders.len());
+//! println!("================================");
+//!
+//! for order in &orders {
+//!     let status_icon = match order.status {
+//!         OrderStatus::Complete => "✅",
+//!         OrderStatus::Open | OrderStatus::TriggerPending => "⏳",
+//!         OrderStatus::Cancelled => "❌",
+//!         OrderStatus::Rejected => "🚫",
+//!         _ => "❓",
+//!     };
+//!
+//!     println!("{} {} ({:?})", status_icon, order.order_id, order.status);
+//!     println!("   📊 {:?} {} {} @ ₹{:.2}",
+//!         order.transaction_type,
+//!         order.quantity,
+//!         order.trading_symbol,
+//!         order.price);
+//!
+//!     if order.is_partially_filled() {
+//!         println!("   📈 Partial fill: {}/{} ({:.1}%)",
+//!             order.filled_quantity,
+//!             order.quantity,
+//!             order.fill_percentage());
+//!     }
+//!
+//!     if order.is_complete() && order.filled_quantity > 0 {
+//!         println!("   💰 Avg fill price: ₹{:.2}",
+//!             order.average_price);
+//!     }
+//!     println!();
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Order Modification and Cancellation
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! let order_id = "210429000000001"; // Replace with actual order ID
+//!
+//! // Modify order price
+//! let modify_result = client.modify_order(
+//!     order_id,
+//!     "regular",           // variety
+//!     None,               // quantity (unchanged)
+//!     Some("2550.0"),     // new price
+//!     None,               // order_type (unchanged)
+//!     None,               // validity (unchanged)
+//!     None,               // disclosed_quantity
+//!     None,               // trigger_price
+//!     None,               // parent_order_id
+//! ).await;
+//!
+//! match modify_result {
+//!     Ok(_) => println!("✅ Order {} modified successfully", order_id),
+//!     Err(e) => println!("❌ Failed to modify order: {}", e),
+//! }
+//!
+//! // Cancel order if modification fails or no longer needed
+//! let cancel_result = client.cancel_order(order_id, "regular", None).await;
+//! match cancel_result {
+//!     Ok(_) => println!("🗑️ Order {} cancelled successfully", order_id),
+//!     Err(e) => println!("❌ Failed to cancel order: {}", e),
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Trade Book Analysis
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all trades for the day
+//! let trades = client.trades_typed().await?;
+//!
+//! println!("💼 Trade Book Analysis ({} trades):", trades.len());
+//! println!("=====================================");
+//!
+//! let mut total_turnover = 0.0;
+//! let mut buy_trades = 0;
+//! let mut sell_trades = 0;
+//!
+//! for trade in &trades {
+//!     let trade_value = trade.total_value();
+//!     total_turnover += trade_value;
+//!
+//!     if trade.is_buy() {
+//!         buy_trades += 1;
+//!     } else {
+//!         sell_trades += 1;
+//!     }
+//!
+//!     println!("🔄 {} {}: {} @ ₹{:.2} (₹{:.2})",
+//!         trade.fill_timestamp.format("%H:%M:%S"),
+//!         trade.trading_symbol,
+//!         if trade.is_buy() { "BUY" } else { "SELL" },
+//!         trade.average_price,
+//!         trade_value);
+//! }
+//!
+//! println!();
+//! println!("📊 Summary:");
+//! println!("   Total trades: {} (Buy: {}, Sell: {})", trades.len(), buy_trades, sell_trades);
+//! println!("   Total turnover: ₹{:.2}", total_turnover);
+//! println!("   Average trade size: ₹{:.2}",
+//!     if !trades.is_empty() { total_turnover / trades.len() as f64 } else { 0.0 });
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Data Models
+//!
+//! ### Order Types
+//! The [`Order`] struct represents order information with comprehensive status tracking:
+//! - **Order Status**: Open, complete, cancelled, rejected states
+//! - **Fill Information**: Partial and complete fill tracking
+//! - **Execution Details**: Average price, timestamps, and exchange data
+//! - **Order Analysis**: Helper methods for status checking and calculations
+//!
+//! ### Order Parameters
+//! The [`OrderParams`] struct defines order placement requirements:
+//! - **Required Fields**: Symbol, exchange, transaction type, quantity
+//! - **Optional Fields**: Price, validity, disclosed quantity, tags
+//! - **Advanced Features**: Stop-loss, iceberg, bracket order parameters
+//! - **Validation**: Built-in parameter validation and error checking
+//!
+//! ### Trade Information
+//! The [`Trade`] struct represents executed trades:
+//! - **Execution Data**: Fill price, quantity, and timestamp
+//! - **Order Linkage**: Connection to parent order information
+//! - **Value Calculations**: Trade value and commission tracking
+//! - **Direction Analysis**: Buy/sell identification and analysis
+//!
+//! ## Error Handling
+//!
+//! All methods return `Result<T>` with comprehensive error information:
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::models::common::KiteError;
+//!
+//! # #[tokio::main]
+//! # async fn main() {
+//! # let client = kiteconnect_async_wasm::connect::KiteConnect::new("", "");
+//! # let order_params = kiteconnect_async_wasm::models::orders::OrderParams {
+//! #     exchange: kiteconnect_async_wasm::models::common::Exchange::NSE,
+//! #     trading_symbol: "TEST".to_string(),
+//! #     transaction_type: kiteconnect_async_wasm::models::common::TransactionType::BUY,
+//! #     quantity: 1,
+//! #     order_type: kiteconnect_async_wasm::models::common::OrderType::MARKET,
+//! #     product: kiteconnect_async_wasm::models::common::Product::MIS,
+//! #     price: None, validity: None, disclosed_quantity: None, trigger_price: None,
+//! #     tag: None, squareoff: None, stoploss: None, trailing_stoploss: None,
+//! #     market_protection: None, iceberg_legs: None, iceberg_quantity: None,
+//! #     auction_number: None,
+//! # };
+//! match client.place_order_typed("regular", &order_params).await {
+//!     Ok(response) => {
+//!         println!("✅ Order placed: {}", response.order_id);
+//!     }
+//!     Err(KiteError::Authentication(msg)) => {
+//!         eprintln!("🔐 Authentication failed: {}", msg);
+//!         // Handle re-authentication
+//!     }
+//!     Err(KiteError::Api { status, message, .. }) => {
+//!         eprintln!("🚫 Order rejected: {} - {}", status, message);
+//!         if status == "429" {
+//!             eprintln!("⏱️ Rate limited - please wait before retrying");
+//!         }
+//!         // Handle order rejection (insufficient margin, invalid params, etc.)
+//!     }
+//!     Err(e) => eprintln!("❌ Other error: {}", e),
+//! }
+//! # }
+//! ```
+//!
+//! ## Order Validation
+//!
+//! The module provides built-in validation for order parameters:
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::models::orders::OrderBuilder;
+//! use kiteconnect_async_wasm::models::common::{Exchange, TransactionType, OrderType, Product};
+//!
+//! # fn example() -> Result<(), String> {
+//! // This will fail validation - no price for LIMIT order
+//! let invalid_order = OrderBuilder::new()
+//!     .trading_symbol("RELIANCE")
+//!     .exchange(Exchange::NSE)
+//!     .transaction_type(TransactionType::BUY)
+//!     .quantity(10)
+//!     .order_type(OrderType::LIMIT)  // LIMIT order requires price
+//!     .product(Product::CNC)
+//!     .build(); // This returns Err("Price is required for LIMIT orders")
+//!
+//! match invalid_order {
+//!     Ok(_) => println!("Order validated successfully"),
+//!     Err(e) => println!("Validation error: {}", e),
+//! }
+//!
+//! // Correct version with price
+//! let valid_order = OrderBuilder::new()
+//!     .trading_symbol("RELIANCE")
+//!     .exchange(Exchange::NSE)
+//!     .transaction_type(TransactionType::BUY)
+//!     .quantity(10)
+//!     .order_type(OrderType::LIMIT)
+//!     .product(Product::CNC)
+//!     .price(2500.0)  // Price provided for LIMIT order
+//!     .build()?;
+//!
+//! println!("✅ Order validated and ready for placement");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Performance Considerations
+//!
+//! ### Efficient Order Management
+//! - **Batch Operations**: Use `tokio::join!` for concurrent order operations
+//! - **Typed APIs**: Use `*_typed()` methods for better performance and type safety
+//! - **Builder Patterns**: Use builders for complex orders to avoid parameter errors
+//!
+//! ### Memory Usage
+//! - **Structured Data**: Typed APIs use less memory than JSON parsing
+//! - **Efficient Calculations**: Built-in helper methods reduce computation overhead
+//! - **Order Filtering**: Filter orders client-side to reduce data processing
+//!
+//! ## Rate Limiting
+//!
+//! The module automatically handles rate limiting according to KiteConnect API guidelines:
+//! - **Order APIs**: 10 requests per second for order placement and modification
+//! - **Query APIs**: 3 requests per second for order and trade queries
+//! - **Automatic Retry**: Built-in retry mechanism with exponential backoff
+//! - **Connection Pooling**: HTTP connections are reused for better performance
+//!
+//! ## Thread Safety
+//!
+//! All methods are thread-safe and can be called concurrently:
+//! ```rust,no_run
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # let client = KiteConnect::new("", "");
+//! // Concurrent order and trade data retrieval
+//! let (orders, trades) = tokio::try_join!(
+//!     client.orders_typed(),
+//!     client.trades_typed()
+//! )?;
+//!
+//! // Process both datasets concurrently
+//! println!("Orders: {}, Trades: {}", orders.len(), trades.len());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Migration from v1.0.2
+//!
+//! All existing methods continue to work. New typed methods provide enhanced features:
+//! - Replace `place_order()` with `place_order_typed()` for structured parameters
+//! - Use `orders_typed()` and `trades_typed()` for type safety
+//! - Leverage `OrderBuilder` and `BracketOrderBuilder` for complex orders
+//! - Legacy methods remain available for backward compatibility
 
 use crate::connect::endpoints::KiteEndpoint;
 use anyhow::Result;
@@ -17,6 +477,7 @@ impl KiteConnect {
     // === LEGACY API METHODS (JSON responses) ===
 
     /// Place an order
+    #[allow(clippy::too_many_arguments)]
     pub async fn place_order(
         &self,
         variety: &str,
@@ -86,6 +547,7 @@ impl KiteConnect {
     }
 
     /// Modify an open order
+    #[allow(clippy::too_many_arguments)]
     pub async fn modify_order(
         &self,
         order_id: &str,
@@ -263,6 +725,7 @@ impl KiteConnect {
     }
 
     /// Modify an open position product type
+    #[allow(clippy::too_many_arguments)]
     pub async fn convert_position(
         &self,
         exchange: &str,

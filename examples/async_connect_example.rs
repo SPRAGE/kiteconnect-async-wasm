@@ -33,6 +33,7 @@ trait RequestHandler {
 pub struct KiteConnect {
     api_key: String,
     access_token: String,
+    #[allow(dead_code)]
     session_expiry_hook: Option<fn() -> ()>,
     #[cfg(not(target_arch = "wasm32"))]
     client: reqwest::Client,
@@ -161,6 +162,7 @@ impl KiteConnect {
     }
 
     /// Place an order (now async)
+    #[allow(clippy::too_many_arguments)]
     pub async fn place_order(
         &self,
         variety: &str,

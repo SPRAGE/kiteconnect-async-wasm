@@ -1,6 +1,485 @@
 //! # Mutual Funds Module
 //!
-//! This module contains mutual fund operations for the KiteConnect API.
+//! This module provides comprehensive mutual fund investment and management functionality
+//! for the KiteConnect API. It supports all major mutual fund operations including orders,
+//! SIPs (Systematic Investment Plans), holdings management, and fund discovery.
+//!
+//! ## Overview
+//!
+//! The mutual funds module enables you to:
+//! - **Place Orders**: Buy and sell mutual fund units
+//! - **Manage SIPs**: Set up and manage systematic investment plans
+//! - **Track Holdings**: Monitor your mutual fund portfolio
+//! - **Fund Discovery**: Access comprehensive mutual fund database
+//! - **Performance Analysis**: Track returns and analyze fund performance
+//!
+//! ## Mutual Fund Operations
+//!
+//! ### 1. Fund Discovery and Information
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all available mutual funds
+//! let all_funds = client.mf_instruments().await?;
+//! println!("Available mutual funds: {}", all_funds.as_array().map(|a| a.len()).unwrap_or(0));
+//!
+//! // Search for specific fund categories
+//! // Filter by AMC, category, risk level, etc.
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### 2. Placing Mutual Fund Orders
+//!
+//! #### Buy Orders (Investment)
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Method 1: Buy by amount (recommended for most cases)
+//! let buy_order = client.place_mf_order(
+//!     "INF090I01239",     // Fund ISIN (e.g., SBI Blue Chip Fund)
+//!     "BUY",              // Transaction type
+//!     None,               // Quantity (not needed for amount-based orders)
+//!     Some("5000"),       // Investment amount in rupees
+//!     None                // Tag (optional)
+//! ).await?;
+//!
+//! println!("MF buy order placed: {:?}", buy_order);
+//!
+//! // Method 2: Buy by units (if you know exact units needed)
+//! let unit_buy_order = client.place_mf_order(
+//!     "INF090I01239",     // Fund ISIN
+//!     "BUY",              // Transaction type
+//!     Some("100"),        // Exact units to buy
+//!     None,               // Amount (not needed for unit-based orders)
+//!     Some("INVESTMENT")  // Optional tag for tracking
+//! ).await?;
+//!
+//! println!("MF unit buy order placed: {:?}", unit_buy_order);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! #### Sell Orders (Redemption)
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Sell specific units
+//! let sell_order = client.place_mf_order(
+//!     "INF090I01239",     // Fund ISIN
+//!     "SELL",             // Transaction type
+//!     Some("50"),         // Units to sell
+//!     None,               // Amount (not used for sell orders)
+//!     Some("PARTIAL_REDEMPTION") // Optional tag
+//! ).await?;
+//!
+//! println!("MF sell order placed: {:?}", sell_order);
+//!
+//! // Full redemption (sell all units)
+//! let full_redemption = client.place_mf_order(
+//!     "INF090I01239",     // Fund ISIN
+//!     "SELL",             // Transaction type
+//!     Some("0"),          // 0 units = full redemption
+//!     None,               // Amount not used
+//!     Some("FULL_REDEMPTION") // Tag for tracking
+//! ).await?;
+//!
+//! println!("Full redemption order placed: {:?}", full_redemption);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### 3. Order Management and Tracking
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all MF orders
+//! let all_orders = client.mf_orders(None).await?;
+//! println!("All MF orders: {:?}", all_orders);
+//!
+//! // Get specific order details
+//! let order_details = client.mf_orders(Some("MF_ORDER_ID")).await?;
+//! println!("Order details: {:?}", order_details);
+//!
+//! // Cancel a pending order
+//! let cancellation = client.cancel_mf_order("MF_ORDER_ID").await?;
+//! println!("Order cancelled: {:?}", cancellation);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### 4. SIP (Systematic Investment Plan) Management
+//!
+//! #### Setting Up SIPs
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Create a monthly SIP
+//! let sip_order = client.place_mf_sip(
+//!     "INF090I01239",     // Fund ISIN
+//!     "5000",             // Monthly amount
+//!     "12",               // Number of installments
+//!     "monthly",          // Frequency
+//!     None,               // Initial amount (optional)
+//!     None,               // Instalment day
+//!     None                // Tag (optional)
+//! ).await?;
+//!
+//! println!("SIP created: {:?}", sip_order);
+//!
+//! // Create a weekly SIP with initial investment
+//! let weekly_sip = client.place_mf_sip(
+//!     "INF090I01247",     // Different fund ISIN
+//!     "1000",             // Weekly amount
+//!     "52",               // 52 weeks = 1 year
+//!     "weekly",           // Frequency
+//!     Some("10000"),      // Initial lump sum investment
+//!     Some("15"),         // Day of the month/week
+//!     Some("WEEKLY_SIP")  // Tag for tracking
+//! ).await?;
+//!
+//! println!("Weekly SIP with initial investment created: {:?}", weekly_sip);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! #### Managing Existing SIPs
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all SIPs
+//! let all_sips = client.mf_sips(None).await?;
+//! println!("All SIPs: {:?}", all_sips);
+//!
+//! // Get specific SIP details
+//! let sip_details = client.mf_sips(Some("SIP_ID")).await?;
+//! println!("SIP details: {:?}", sip_details);
+//!
+//! // Modify a SIP (change amount or frequency)
+//! let modified_sip = client.modify_mf_sip(
+//!     "SIP_ID",
+//!     "7500",             // New amount (increased from 5000)
+//!     "ACTIVE",           // Status
+//!     "12",               // Installments
+//!     "monthly",          // Frequency
+//!     None                // Instalment day (keep unchanged)
+//! ).await?;
+//!
+//! println!("SIP modified: {:?}", modified_sip);
+//!
+//! // Pause a SIP
+//! let paused_sip = client.modify_mf_sip(
+//!     "SIP_ID",
+//!     "5000",             // Amount (keep current)
+//!     "PAUSED",           // Pause the SIP
+//!     "12",               // Installments
+//!     "monthly",          // Frequency
+//!     None                // Instalment day (keep unchanged)
+//! ).await?;
+//!
+//! println!("SIP paused: {:?}", paused_sip);
+//!
+//! // Cancel a SIP permanently
+//! let cancelled_sip = client.cancel_mf_sip("SIP_ID").await?;
+//! println!("SIP cancelled: {:?}", cancelled_sip);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### 5. Portfolio Holdings and Performance Analysis
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all mutual fund holdings
+//! let holdings = client.mf_holdings().await?;
+//! println!("MF Holdings: {:?}", holdings);
+//!
+//! // Example: Calculate portfolio metrics
+//! if let Some(holdings_array) = holdings["data"].as_array() {
+//!     let mut total_investment = 0.0;
+//!     let mut total_current_value = 0.0;
+//!     
+//!     for holding in holdings_array {
+//!         if let (Some(avg_price), Some(quantity), Some(last_price)) = (
+//!             holding["average_price"].as_f64(),
+//!             holding["quantity"].as_f64(),
+//!             holding["last_price"].as_f64()
+//!         ) {
+//!             let investment = avg_price * quantity;
+//!             let current_value = last_price * quantity;
+//!             
+//!             total_investment += investment;
+//!             total_current_value += current_value;
+//!             
+//!             let pnl = current_value - investment;
+//!             let pnl_percent = (pnl / investment) * 100.0;
+//!             
+//!             println!("Fund: {} | Investment: ₹{:.2} | Current: ₹{:.2} | P&L: ₹{:.2} ({:.2}%)",
+//!                 holding["tradingsymbol"].as_str().unwrap_or("Unknown"),
+//!                 investment, current_value, pnl, pnl_percent
+//!             );
+//!         }
+//!     }
+//!     
+//!     let total_pnl = total_current_value - total_investment;
+//!     let total_pnl_percent = (total_pnl / total_investment) * 100.0;
+//!     
+//!     println!("\n=== Portfolio Summary ===");
+//!     println!("Total Investment: ₹{:.2}", total_investment);
+//!     println!("Current Value: ₹{:.2}", total_current_value);
+//!     println!("Total P&L: ₹{:.2} ({:.2}%)", total_pnl, total_pnl_percent);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Advanced Usage with Typed APIs
+//!
+//! For better type safety and IDE support, use the typed API methods:
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::mutual_funds::MFOrderParams;
+//! use kiteconnect_async_wasm::models::common::TransactionType;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Using typed APIs for better error handling and type safety
+//! let mf_orders = client.mf_orders_typed(None).await?;
+//! println!("Total MF orders: {}", mf_orders.len());
+//!
+//! let mf_holdings = client.mf_holdings_typed().await?;
+//! println!("Total MF holdings: {}", mf_holdings.len());
+//!
+//! let sips = client.mf_sips_typed(None).await?;
+//! println!("Active SIPs: {}", sips.len());
+//!
+//! // Type-safe order placement
+//! let order_params = MFOrderParams {
+//!     trading_symbol: "INF090I01239".to_string(),
+//!     transaction_type: TransactionType::BUY,
+//!     amount: Some(5000.0),
+//!     quantity: None,
+//!     tag: Some("MONTHLY_INVESTMENT".to_string()),
+//! };
+//!
+//! let order_response = client.place_mf_order_typed(&order_params).await?;
+//! println!("Order placed with ID: {}", order_response.order_id);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Investment Strategies and Best Practices
+//!
+//! ### 1. Diversification Strategy
+//!
+//! ```rust,no_run
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Diversified portfolio approach
+//! let funds = vec![
+//!     ("INF090I01239", "3000", "Large Cap"),      // 30% - Large cap stability
+//!     ("INF090I01247", "2000", "Mid Cap"),        // 20% - Mid cap growth
+//!     ("INF090I01255", "1500", "Small Cap"),      // 15% - Small cap high growth
+//!     ("INF090I01263", "2000", "Debt Fund"),      // 20% - Debt for stability
+//!     ("INF090I01271", "1500", "International"),  // 15% - International exposure
+//! ];
+//!
+//! for (isin, amount, category) in funds {
+//!     match client.place_mf_order(isin, "BUY", None, Some(amount), Some(category)).await {
+//!         Ok(order) => println!("✅ {} investment of ₹{} placed", category, amount),
+//!         Err(e) => eprintln!("❌ Failed to place {} investment: {}", category, e),
+//!     }
+//!     
+//!     // Add delay to respect rate limits
+//!     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### 2. SIP Automation Strategy
+//!
+//! ```rust,no_run
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Automated SIP setup for long-term wealth building
+//! let sip_strategy = vec![
+//!     ("INF090I01239", "2000", "EQUITY_GROWTH"),   // Equity for growth
+//!     ("INF090I01247", "1000", "DEBT_STABILITY"),  // Debt for stability
+//!     ("INF090I01255", "500", "INTERNATIONAL"),    // International diversification
+//! ];
+//!
+//! for (isin, monthly_amount, tag) in sip_strategy {
+//!     match client.place_mf_sip(
+//!         isin,
+//!         monthly_amount,
+//!         "60",            // 5 years (60 months)
+//!         "monthly",
+//!         None,
+//!         None,            // Instalment day
+//!         Some(tag)
+//!     ).await {
+//!         Ok(sip) => println!("✅ SIP of ₹{}/month set up for {}", monthly_amount, tag),
+//!         Err(e) => eprintln!("❌ Failed to set up SIP: {}", e),
+//!     }
+//!     
+//!     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### 3. Portfolio Rebalancing
+//!
+//! ```rust,no_run
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Periodic portfolio rebalancing
+//! async fn rebalance_portfolio(client: &KiteConnect) -> Result<(), Box<dyn std::error::Error>> {
+//!     let holdings = client.mf_holdings().await?;
+//!     
+//!     // Calculate current allocation percentages
+//!     // Identify over/under allocated categories
+//!     // Place buy/sell orders to rebalance
+//!     
+//!     println!("Portfolio rebalancing completed");
+//!     Ok(())
+//! }
+//!
+//! // Run rebalancing monthly
+//! rebalance_portfolio(&client).await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Error Handling Best Practices
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::common::KiteError;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Comprehensive error handling for MF operations
+//! match client.place_mf_order("INF090I01239", "BUY", None, Some("5000"), None).await {
+//!     Ok(order) => {
+//!         println!("✅ Order placed successfully: {:?}", order);
+//!     },
+//!     Err(e) => {
+//!         // Handle specific error types
+//!         eprintln!("❌ Order placement failed: {}", e);
+//!         
+//!         // Common error scenarios:
+//!         // - Insufficient balance
+//!         // - Invalid ISIN
+//!         // - Market closed
+//!         // - Minimum investment amount not met
+//!         // - Daily investment limit exceeded
+//!         // Implement retry logic or alternative actions
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Performance Monitoring and Analytics
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use std::time::Duration;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Monthly performance analysis
+//! async fn analyze_performance(client: &KiteConnect) -> Result<(), Box<dyn std::error::Error>> {
+//!     let holdings = client.mf_holdings().await?;
+//!     let orders = client.mf_orders(None).await?;
+//!     
+//!     // Calculate returns, volatility, and risk metrics
+//!     // Generate performance reports
+//!     // Send alerts for significant changes
+//!     
+//!     println!("Performance analysis completed");
+//!     Ok(())
+//! }
+//!
+//! // Automated monitoring loop
+//! loop {
+//!     analyze_performance(&client).await?;
+//!     tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await; // Daily analysis
+//! }
+//! # }
+//! ```
+//!
+//! ## Rate Limiting and API Compliance
+//!
+//! Mutual fund operations are subject to specific rate limits:
+//! - **Order operations**: 10 requests per second (standard category)
+//! - **Data retrieval**: Built-in rate limiting with automatic retry
+//! - **Best practices**: Batch operations and implement exponential backoff
+//!
+//! The module automatically handles rate limiting, but for high-frequency operations,
+//! implement additional delay between requests to ensure compliance.
+//!
+//! ## Platform Compatibility
+//!
+//! This mutual funds module provides identical functionality across all platforms:
+//! - **Native (Desktop/Server)**: Full performance with local caching
+//! - **WASM (Browser)**: Complete functionality in web applications  
+//! - **Mobile**: Optimized for mobile trading applications
+//!
+//! All APIs maintain consistent behavior and error handling across platforms.
 
 use crate::connect::endpoints::KiteEndpoint;
 use anyhow::Result;
@@ -251,6 +730,7 @@ impl KiteConnect {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub async fn place_mf_sip(
         &self,
         tradingsymbol: &str,

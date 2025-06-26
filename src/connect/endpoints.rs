@@ -1,21 +1,90 @@
 //! # Endpoint Management Module
 //!
 //! This module provides centralized endpoint definitions and rate limiting
-//! configuration for all KiteConnect API endpoints.
+//! configuration for all KiteConnect API endpoints. It ensures consistent
+//! URL construction, proper HTTP methods, and compliance with API rate limits.
+//!
+//! ## Architecture
+//!
+//! The endpoint system is built around three core components:
+//! 1. **`KiteEndpoint`** - Enum defining all available API endpoints
+//! 2. **`RateLimitCategory`** - Categorizes endpoints by their rate limits  
+//! 3. **`HttpMethod`** - Defines HTTP methods used by endpoints
+//!
+//! ## Rate Limiting
+//!
+//! KiteConnect API enforces different rate limits based on endpoint functionality:
+//! - **Quote data**: 1 request/second (most restrictive)
+//! - **Historical data**: 3 requests/second
+//! - **Order operations**: 10 requests/second  
+//! - **Standard operations**: 10 requests/second
+//!
+//! ## URL Construction
+//!
+//! Each endpoint knows how to construct its URL path and determine its HTTP method:
+//!
+//! ```rust
+//! use kiteconnect_async_wasm::connect::endpoints::{KiteEndpoint, HttpMethod};
+//!
+//! let endpoint = KiteEndpoint::Quote;
+//! assert_eq!(endpoint.path(), "/quote");
+//! assert_eq!(endpoint.method(), HttpMethod::GET);
+//! ```
+//!
+//! ## Thread Safety
+//!
+//! All types in this module are `Send + Sync` and can be safely used across
+//! multiple threads without synchronization.
 
 use std::time::Duration;
 
 /// HTTP method types for API requests
+///
+/// Represents the standard HTTP methods used by KiteConnect API endpoints.
+/// Each endpoint uses a specific HTTP method based on the operation type:
+/// - **GET**: Data retrieval (quotes, holdings, orders)
+/// - **POST**: Resource creation (place orders, create GTT)
+/// - **PUT**: Resource updates (modify orders, update GTT)
+/// - **DELETE**: Resource deletion (cancel orders, delete GTT)
+///
+/// # Example
+///
+/// ```rust
+/// use kiteconnect_async_wasm::connect::endpoints::HttpMethod;
+///
+/// let method = HttpMethod::GET;
+/// assert_eq!(method.as_str(), "GET");
+///
+/// // Check method type
+/// assert!(matches!(method, HttpMethod::GET));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HttpMethod {
+    /// HTTP GET method for data retrieval
     GET,
+    /// HTTP POST method for resource creation  
     POST,
+    /// HTTP PUT method for resource updates
     PUT,
+    /// HTTP DELETE method for resource deletion
     DELETE,
 }
 
 impl HttpMethod {
-    /// Convert to string for use with reqwest
+    /// Convert HTTP method to string for use with reqwest
+    ///
+    /// # Returns
+    ///
+    /// A static string slice representing the HTTP method
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use kiteconnect_async_wasm::connect::endpoints::HttpMethod;
+    ///
+    /// assert_eq!(HttpMethod::GET.as_str(), "GET");
+    /// assert_eq!(HttpMethod::POST.as_str(), "POST");
+    /// ```
     pub fn as_str(&self) -> &'static str {
         match self {
             HttpMethod::GET => "GET",
@@ -27,20 +96,82 @@ impl HttpMethod {
 }
 
 /// Rate limit categories based on official KiteConnect API documentation
+///
+/// KiteConnect API enforces different rate limits for different types of operations
+/// to ensure fair usage and system stability. Understanding these categories is
+/// crucial for building responsive applications that don't hit rate limits.
+///
+/// ## Category Details
+///
+/// - **Quote**: Real-time market data (most restrictive at 1 req/sec)
+/// - **Historical**: Historical market data (3 req/sec)  
+/// - **Orders**: Trading operations (10 req/sec)
+/// - **Standard**: General operations (10 req/sec)
+///
+/// ## Rate Limit Enforcement
+///
+/// Rate limits are enforced using a token bucket algorithm where:
+/// 1. Each category has a bucket with a specific capacity
+/// 2. Tokens are consumed for each request  
+/// 3. Tokens are refilled at the category's rate
+/// 4. Requests wait when no tokens are available
+///
+/// # Example
+///
+/// ```rust
+/// use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
+///
+/// let category = RateLimitCategory::Quote;
+/// assert_eq!(category.requests_per_second(), 1);
+///
+/// let category = RateLimitCategory::Orders;
+/// assert_eq!(category.requests_per_second(), 10);
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RateLimitCategory {
     /// Quote endpoints: 1 request/second
+    ///
+    /// Includes real-time market data endpoints like quotes, LTP, and OHLC.
+    /// These have the most restrictive limits due to the high-frequency nature
+    /// of market data and server load considerations.
     Quote,
+
     /// Historical candle endpoints: 3 requests/second
+    ///
+    /// Includes historical OHLC data endpoints. These limits balance the need
+    /// for historical analysis with server resource management.
     Historical,
+
     /// Order placement endpoints: 10 requests/second
+    ///
+    /// Includes order placement, modification, and cancellation endpoints.
+    /// Higher limits support active trading while preventing system abuse.
     Orders,
+
     /// All other endpoints: 10 requests/second
+    ///
+    /// Default category for portfolio, profile, and other general operations.
+    /// Provides good throughput for typical application usage patterns.
     Standard,
 }
 
 impl RateLimitCategory {
     /// Get the rate limit for this category (requests per second)
+    ///
+    /// # Returns
+    ///
+    /// The maximum number of requests allowed per second for this category
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
+    ///
+    /// assert_eq!(RateLimitCategory::Quote.requests_per_second(), 1);
+    /// assert_eq!(RateLimitCategory::Historical.requests_per_second(), 3);  
+    /// assert_eq!(RateLimitCategory::Orders.requests_per_second(), 10);
+    /// assert_eq!(RateLimitCategory::Standard.requests_per_second(), 10);
+    /// ```
     pub fn requests_per_second(&self) -> u32 {
         match self {
             RateLimitCategory::Quote => 1,

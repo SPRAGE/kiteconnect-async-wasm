@@ -120,7 +120,7 @@ impl Default for CacheConfig {
 
 /// Simple in-memory cache for API responses
 #[derive(Debug)]
-struct ResponseCache {
+pub(crate) struct ResponseCache {
     instruments_cache: Option<(JsonValue, SystemTime)>,
     ttl_minutes: u64,
 }
@@ -235,6 +235,7 @@ pub struct KiteConnect {
     /// Base URL for API requests
     pub(crate) root: String,
     /// Request timeout in seconds
+    #[allow(dead_code)]
     pub(crate) timeout: u64,
     /// Optional callback for session expiry handling
     pub(crate) session_expiry_hook: Option<fn() -> ()>,

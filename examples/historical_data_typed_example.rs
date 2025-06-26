@@ -13,7 +13,7 @@ use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize KiteConnect client
-    let client = KiteConnect::new("your_api_key", "your_access_token");
+    let _client = KiteConnect::new("your_api_key", "your_access_token");
 
     println!("=== Historical Data Typed API Example ===\n");
 
@@ -89,8 +89,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let intervals = Interval::all();
     for interval in intervals {
         println!(
-            "  {} -> String: '{}', Integer: {}",
-            format!("{:?}", interval),
+            "  {:?} -> String: '{}', Integer: {}",
+            interval,
             interval,
             interval.as_i8()
         );

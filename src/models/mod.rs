@@ -1,8 +1,11 @@
 /*!
-# KiteConnect v1.0.0 Data Models
+# KiteConnect v1.0.3 Data Models
 
-This module provides fully typed data models for all KiteConnect API operations.
-The models are organized into domain-specific submodules:
+This module provides comprehensive typed models for all KiteConnect API operations.
+The models are organized into domain-specific submodules and offer both legacy
+compatibility and enhanced v1.0.3 features.
+
+## Model Organization
 
 - **`common`**: Shared types, enums, errors, and response wrappers
 - **`auth`**: Authentication, sessions, user profiles, and margins
@@ -12,10 +15,22 @@ The models are organized into domain-specific submodules:
 - **`mutual_funds`**: MF orders, instruments, SIPs, and holdings
 - **`gtt`**: GTT (Good Till Triggered) orders and triggers
 
-## Migration from v0.x
+## What's New in v1.0.3
 
-v1.0.0 introduces fully typed models that will replace `JsonValue` returns.
-The typed models are currently available for data serialization/deserialization:
+### Enhanced Historical Data API
+- **Structured Requests**: New `HistoricalDataRequest` with builder pattern
+- **Precise DateTime**: `NaiveDateTime` support for hour/minute/second precision
+- **Type Safety**: Compile-time validation of parameters
+
+### Dual Serde Support
+- **Flexible Intervals**: Accept both strings ("day") and integers (0) for `Interval`
+- **Consistent Output**: Always serialize as strings for API compatibility
+- **Backward Compatible**: Existing code continues to work
+
+### Organized Enum System
+- **Modular Structure**: Enums split into logical submodules
+- **Better Maintainability**: Easier navigation and development
+- **Full Compatibility**: All imports work through re-exports
 
 ```rust
 use kiteconnect_async_wasm::models::prelude::*;
@@ -103,12 +118,13 @@ pub mod gtt;
 pub use common::*;
 
 /// Prelude module for convenient imports
+///
+/// Import commonly used types with a single `use` statement
+///
+/// ```rust
+/// use kiteconnect_async_wasm::models::prelude::*;
+/// ```
 pub mod prelude {
-    //! Import commonly used types with a single `use` statement
-    //!
-    //! ```rust
-    //! use kiteconnect_async_wasm::models::prelude::*;
-    //! ```
 
     // Common types
     pub use super::common::{

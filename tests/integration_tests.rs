@@ -32,7 +32,7 @@ mod tests {
 
         // Test that access token can be set (no panic/error)
         // Since field is private, we can't directly test the value
-        assert!(true); // If we reach here, the method worked
+        // The fact that we reach here means the method worked
     }
 
     #[test]
@@ -46,7 +46,7 @@ mod tests {
         client.set_session_expiry_hook(mock_hook);
 
         // Test that hook can be set without panic
-        assert!(true);
+        // The fact that we reach here means the method worked
     }
 }
 
@@ -65,12 +65,10 @@ mod api_tests {
         // This would require valid credentials
         match client.instruments(None).await {
             Ok(_instruments) => {
-                // API call succeeded
-                assert!(true);
+                // API call succeeded - test passes
             }
             Err(_e) => {
-                // Expected to fail without valid credentials
-                assert!(true);
+                // Expected to fail without valid credentials - test passes
             }
         }
     }
@@ -100,14 +98,16 @@ mod configuration_tests {
         let _client = KiteConnect::default();
 
         // Test that default configuration works
-        assert!(true);
+        // The fact that we reach here means the default config worked
     }
 
     #[test]
     fn test_custom_configuration() {
-        let mut config = kiteconnect_async_wasm::connect::KiteConnectConfig::default();
-        config.timeout = 60;
-        config.base_url = "https://custom.api.url".to_string();
+        let config = kiteconnect_async_wasm::connect::KiteConnectConfig {
+            timeout: 60,
+            base_url: "https://custom.api.url".to_string(),
+            ..Default::default()
+        };
 
         // Test that configuration can be created and modified
         assert_eq!(config.timeout, 60);

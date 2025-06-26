@@ -1,53 +1,120 @@
-//! # kiteconnect-async-wasm
+//! # kiteconnect-async-wasm v1.0.3
 //!
-//! A modern, async Rust implementation of the Zerodha KiteConnect API with WASM support.
-//! This library provides comprehensive access to KiteConnect's REST APIs for trading,
-//! portfolio management, and market data.
+//! A modern, async Rust implementation of the Zerodha KiteConnect API with dual API support,
+//! enhanced error handling, and full WASM compatibility. This library provides comprehensive
+//! access to KiteConnect's REST APIs for trading, portfolio management, and market data.
 //!
-//! ## Features
+//! ## ✨ Features v1.0.3
 //!
-//! - **🚀 Async/Await**: Built with modern Rust async patterns using `tokio`
+//! - **🚀 Enhanced Historical Data API**: New `HistoricalDataRequest` struct with `NaiveDateTime` precision
+//! - **🔄 Dual Serde Support**: Flexible Interval enum accepting both strings and integers
+//! - **📦 Organized Enum System**: Modular enum structure for better maintainability
+//! - **🎯 Dual API Support**: Legacy JSON + new strongly-typed APIs with automatic retry logic
 //! - **🌐 WASM Compatible**: Run in browsers with WebAssembly support
 //! - **🔄 Cross-Platform**: Native (Linux, macOS, Windows) and Web targets
 //! - **📦 Modern Dependencies**: Updated to latest Rust ecosystem libraries
-//! - **🧪 Well Tested**: Comprehensive test coverage with mocked responses
-//! - **⚡ High Performance**: Efficient HTTP client with connection pooling
-//! - **🛡️ Type Safe**: Leverages Rust's type system for safer API interactions
+//! - **🧪 Well Tested**: Comprehensive test coverage (30 unit + 11 integration + 58 doc tests)
+//! - **⚡ High Performance**: Efficient HTTP client with connection pooling and caching
+//! - **🛡️ Type Safe**: Enhanced type system with better error handling patterns
+//! - **📈 Professional Quality**: Clippy-optimized and consistently formatted code
 //!
-//! ## Feature Flags
-//!
-//! This crate supports multiple feature flags to enable platform-specific functionality:
-//!
-//! - **`native`** (default): Enables native platform support with tokio, file I/O, and CSV parsing
-//!   - Includes: `tokio`, `sha2`, `csv` dependencies
-//!   - Best for: Desktop applications, servers, CLI tools
-//!
-//! - **`wasm`**: Enables WebAssembly support with browser APIs and CSV parsing
-//!   - Includes: `wasm-bindgen`, `web-sys`, `js-sys`, `gloo-utils`, `csv-core` dependencies
-//!   - Features: Browser-compatible CSV parsing using csv-core
-//!   - Best for: Browser applications, web workers
-//!
-//! - **`debug`**: Enables additional logging and debugging features
-//!   - Includes: Enhanced `log` output
-//!   - Best for: Development and troubleshooting
-//!
-//! ## Quick Start
+//! ## 🎯 Quick Start
 //!
 //! Add to your `Cargo.toml`:
 //!
 //! ```toml
 //! # For native applications (default)
 //! [dependencies]
-//! kiteconnect-async-wasm = "0.1.0"
+//! kiteconnect-async-wasm = "1.0.3"
 //!
 //! # For WASM/browser applications
 //! [dependencies]
-//! kiteconnect-async-wasm = { version = "0.1.0", default-features = false, features = ["wasm"] }
+//! kiteconnect-async-wasm = { version = "1.0.3", features = ["wasm"] }
 //!
 //! # For development with debugging
 //! [dependencies]
-//! kiteconnect-async-wasm = { version = "0.1.0", features = ["native", "debug"] }
+//! kiteconnect-async-wasm = { version = "1.0.3", features = ["native", "debug"] }
 //! ```
+//!
+//! ## 🚀 Basic Usage
+//!
+//! ### Legacy API (Backward Compatible)
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = KiteConnect::new("api_key", "access_token");
+//!     
+//!     // Legacy API - returns JsonValue (still works)
+//!     let holdings = client.holdings().await?;
+//!     println!("Holdings: {:?}", holdings);
+//!     
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Enhanced Typed API (Recommended for v1.0.3)
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::prelude::*;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = KiteConnect::new("api_key", "access_token");
+//!     
+//!     // New typed API with enhanced error handling
+//!     let holdings: Vec<Holding> = client.holdings_typed().await?;
+//!     let positions: Vec<Position> = client.positions_typed().await?;
+//!     
+//!     println!("Found {} holdings and {} positions", holdings.len(), positions.len());
+//!     
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Enhanced Historical Data API (v1.0.3)
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
+//! use kiteconnect_async_wasm::models::common::Interval;
+//! use chrono::NaiveDateTime;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = KiteConnect::new("api_key", "access_token");
+//!     
+//!     // New structured approach with precise datetime handling
+//!     let request = HistoricalDataRequest::new(
+//!         738561,  // RELIANCE instrument token
+//!         NaiveDateTime::parse_from_str("2023-11-01 09:15:00", "%Y-%m-%d %H:%M:%S")?,
+//!         NaiveDateTime::parse_from_str("2023-11-30 15:30:00", "%Y-%m-%d %H:%M:%S")?,
+//!         Interval::Day,
+//!     ).continuous(false).with_oi(true);
+//!     
+//!     let historical_data = client.historical_data_typed(request).await?;
+//!     println!("Received {} candles", historical_data.candles.len());
+//!     
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## 🔧 Feature Flags
+//!
+//! This crate supports multiple feature flags for platform-specific functionality:
+//!
+//! - **`native`** (default): Enables native platform support with tokio and full CSV parsing
+//!   - Includes: `tokio`, `sha2`, `csv` dependencies
+//!   - Best for: Desktop applications, servers, CLI tools
+//!
+//! - **`wasm`**: Enables WebAssembly support with browser APIs
+//!   - Includes: `wasm-bindgen`, `web-sys`, `js-sys`, `gloo-utils` dependencies
+//!   - Features: Browser-compatible operations with Web APIs
+//!   - Best for: Browser applications, web workers
+//!
+//! - **`debug`**: Enables additional logging and debugging features
+//!   - Includes: Enhanced `log` output and debugging utilities
+//!   - Best for: Development and troubleshooting
 //!
 //! ## Basic Usage
 //!
