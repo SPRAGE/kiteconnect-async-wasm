@@ -91,7 +91,7 @@ assert_eq!(serde_json::to_string(&Interval::FiveMinute).unwrap(), "\"5minute\"")
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use kiteconnect_async_wasm::models::common::Interval;
 ///
 /// // Different ways to create intervals

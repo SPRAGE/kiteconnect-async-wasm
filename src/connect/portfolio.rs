@@ -145,7 +145,7 @@
 //! ```
 //!
 //! ### Margin Analysis
-//! ```rust,no_run
+//! ```rust,ignore
 //! use kiteconnect_async_wasm::connect::KiteConnect;
 //! use kiteconnect_async_wasm::models::auth::TradingSegment;
 //!

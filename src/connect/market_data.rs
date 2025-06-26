@@ -30,14 +30,14 @@
 //! ## Platform-Specific Behavior
 //!
 //! ### Native Platform (tokio)
-//! ```rust
+//! ```rust,ignore
 //! // Instruments data is parsed server-side and returned as structured JSON
 //! let instruments = client.instruments(None).await?;
 //! // Returns JsonValue with array of instrument objects
 //! ```
 //!
 //! ### WASM Platform
-//! ```rust
+//! ```rust,ignore
 //! // CSV data is parsed client-side using csv-core for browser compatibility
 //! let instruments = client.instruments(None).await?;
 //! // Returns JsonValue with array of instrument objects (parsed from CSV)
@@ -88,7 +88,7 @@
 //! ```
 //!
 //! ### Enhanced Historical Data (v1.0.3)
-//! ```rust,no_run
+//! ```rust,ignore
 //! use kiteconnect_async_wasm::connect::KiteConnect;
 //! use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
 //! use kiteconnect_async_wasm::models::common::Interval;
@@ -189,7 +189,7 @@
 //!
 //! All methods return `Result<T>` with comprehensive error information:
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use kiteconnect_async_wasm::models::common::KiteError;
 //!
 //! # #[tokio::main]

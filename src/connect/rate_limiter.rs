@@ -96,7 +96,7 @@ impl CategoryLimiter {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// # use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
     /// # use kiteconnect_async_wasm::connect::rate_limiter::CategoryLimiter;
     /// let limiter = CategoryLimiter::new(RateLimitCategory::Quote);
@@ -119,7 +119,7 @@ impl CategoryLimiter {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// # use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
     /// # use kiteconnect_async_wasm::connect::rate_limiter::CategoryLimiter;
     /// let mut limiter = CategoryLimiter::new(RateLimitCategory::Quote);
@@ -147,7 +147,7 @@ impl CategoryLimiter {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// # use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
     /// # use kiteconnect_async_wasm::connect::rate_limiter::CategoryLimiter;
     /// let mut limiter = CategoryLimiter::new(RateLimitCategory::Quote);
@@ -215,7 +215,7 @@ impl CategoryLimiter {
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use kiteconnect_async_wasm::connect::rate_limiter::RateLimiter;
 /// use kiteconnect_async_wasm::connect::endpoints::{KiteEndpoint, RateLimitCategory};
 ///

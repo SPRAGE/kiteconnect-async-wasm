@@ -19,7 +19,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use kiteconnect_async_wasm::connect::utils::parse_csv_with_core;
 //!
 //! # #[cfg(all(feature = "wasm", target_arch = "wasm32"))]

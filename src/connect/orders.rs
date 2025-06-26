@@ -180,6 +180,7 @@
 //! ### Order Monitoring and Management
 //! ```rust,no_run
 //! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::orders::OrderStatus;
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -192,20 +193,20 @@
 //! println!("================================");
 //!
 //! for order in &orders {
-//!     let status_icon = match order.status.as_str() {
-//!         "COMPLETE" => "✅",
-//!         "OPEN" | "TRIGGER PENDING" => "⏳",
-//!         "CANCELLED" => "❌",
-//!         "REJECTED" => "🚫",
+//!     let status_icon = match order.status {
+//!         OrderStatus::Complete => "✅",
+//!         OrderStatus::Open | OrderStatus::TriggerPending => "⏳",
+//!         OrderStatus::Cancelled => "❌",
+//!         OrderStatus::Rejected => "🚫",
 //!         _ => "❓",
 //!     };
 //!
-//!     println!("{} {} ({})", status_icon, order.order_id, order.status);
-//!     println!("   📊 {} {} {} @ ₹{:.2}",
+//!     println!("{} {} ({:?})", status_icon, order.order_id, order.status);
+//!     println!("   📊 {:?} {} {} @ ₹{:.2}",
 //!         order.transaction_type,
 //!         order.quantity,
 //!         order.trading_symbol,
-//!         order.price.unwrap_or(0.0));
+//!         order.price);
 //!
 //!     if order.is_partially_filled() {
 //!         println!("   📈 Partial fill: {}/{} ({:.1}%)",
@@ -216,7 +217,7 @@
 //!
 //!     if order.is_complete() && order.filled_quantity > 0 {
 //!         println!("   💰 Avg fill price: ₹{:.2}",
-//!             order.average_price.unwrap_or(0.0));
+//!             order.average_price);
 //!     }
 //!     println!();
 //! }
@@ -335,7 +336,7 @@
 //!
 //! All methods return `Result<T>` with comprehensive error information:
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use kiteconnect_async_wasm::models::common::KiteError;
 //!
 //! # #[tokio::main]

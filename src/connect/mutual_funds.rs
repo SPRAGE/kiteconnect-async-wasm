@@ -26,7 +26,7 @@
 //!
 //! // Get all available mutual funds
 //! let all_funds = client.mf_instruments().await?;
-//! println!("Available mutual funds: {}", all_funds.len());
+//! println!("Available mutual funds: {}", all_funds.as_array().map(|a| a.len()).unwrap_or(0));
 //!
 //! // Search for specific fund categories
 //! // Filter by AMC, category, risk level, etc.
@@ -50,7 +50,7 @@
 //!     "INF090I01239",     // Fund ISIN (e.g., SBI Blue Chip Fund)
 //!     "BUY",              // Transaction type
 //!     None,               // Quantity (not needed for amount-based orders)
-//!     Some(5000.0),       // Investment amount in rupees
+//!     Some("5000"),       // Investment amount in rupees
 //!     None                // Tag (optional)
 //! ).await?;
 //!
@@ -60,7 +60,7 @@
 //! let unit_buy_order = client.place_mf_order(
 //!     "INF090I01239",     // Fund ISIN
 //!     "BUY",              // Transaction type
-//!     Some(100.0),        // Exact units to buy
+//!     Some("100"),        // Exact units to buy
 //!     None,               // Amount (not needed for unit-based orders)
 //!     Some("INVESTMENT")  // Optional tag for tracking
 //! ).await?;
@@ -83,7 +83,7 @@
 //! let sell_order = client.place_mf_order(
 //!     "INF090I01239",     // Fund ISIN
 //!     "SELL",             // Transaction type
-//!     Some(50.0),         // Units to sell
+//!     Some("50"),         // Units to sell
 //!     None,               // Amount (not used for sell orders)
 //!     Some("PARTIAL_REDEMPTION") // Optional tag
 //! ).await?;
@@ -94,7 +94,7 @@
 //! let full_redemption = client.place_mf_order(
 //!     "INF090I01239",     // Fund ISIN
 //!     "SELL",             // Transaction type
-//!     Some(0.0),          // 0 units = full redemption
+//!     Some("0"),          // 0 units = full redemption
 //!     None,               // Amount not used
 //!     Some("FULL_REDEMPTION") // Tag for tracking
 //! ).await?;
@@ -142,10 +142,11 @@
 //! // Create a monthly SIP
 //! let sip_order = client.place_mf_sip(
 //!     "INF090I01239",     // Fund ISIN
-//!     5000.0,             // Monthly amount
-//!     12,                 // Number of installments
+//!     "5000",             // Monthly amount
+//!     "12",               // Number of installments
 //!     "monthly",          // Frequency
 //!     None,               // Initial amount (optional)
+//!     None,               // Instalment day
 //!     None                // Tag (optional)
 //! ).await?;
 //!
@@ -154,10 +155,11 @@
 //! // Create a weekly SIP with initial investment
 //! let weekly_sip = client.place_mf_sip(
 //!     "INF090I01247",     // Different fund ISIN
-//!     1000.0,             // Weekly amount
-//!     52,                 // 52 weeks = 1 year
+//!     "1000",             // Weekly amount
+//!     "52",               // 52 weeks = 1 year
 //!     "weekly",           // Frequency
-//!     Some(10000.0),      // Initial lump sum investment
+//!     Some("10000"),      // Initial lump sum investment
+//!     Some("15"),         // Day of the month/week
 //!     Some("WEEKLY_SIP")  // Tag for tracking
 //! ).await?;
 //!
@@ -186,10 +188,11 @@
 //! // Modify a SIP (change amount or frequency)
 //! let modified_sip = client.modify_mf_sip(
 //!     "SIP_ID",
-//!     Some(7500.0),       // New amount (increased from 5000)
-//!     None,               // Status (keep unchanged)
-//!     None,               // Frequency (keep unchanged)
-//!     None                // Installments (keep unchanged)
+//!     "7500",             // New amount (increased from 5000)
+//!     "ACTIVE",           // Status
+//!     "12",               // Installments
+//!     "monthly",          // Frequency
+//!     None                // Instalment day (keep unchanged)
 //! ).await?;
 //!
 //! println!("SIP modified: {:?}", modified_sip);
@@ -197,10 +200,11 @@
 //! // Pause a SIP
 //! let paused_sip = client.modify_mf_sip(
 //!     "SIP_ID",
-//!     None,               // Amount (keep unchanged)
-//!     Some("paused"),     // Pause the SIP
-//!     None,               // Frequency (keep unchanged)
-//!     None                // Installments (keep unchanged)
+//!     "5000",             // Amount (keep current)
+//!     "PAUSED",           // Pause the SIP
+//!     "12",               // Installments
+//!     "monthly",          // Frequency
+//!     None                // Instalment day (keep unchanged)
 //! ).await?;
 //!
 //! println!("SIP paused: {:?}", paused_sip);
@@ -226,7 +230,7 @@
 //! println!("MF Holdings: {:?}", holdings);
 //!
 //! // Example: Calculate portfolio metrics
-//! if let Ok(holdings_array) = holdings.as_array() {
+//! if let Some(holdings_array) = holdings["data"].as_array() {
 //!     let mut total_investment = 0.0;
 //!     let mut total_current_value = 0.0;
 //!     
@@ -271,25 +275,26 @@
 //! ```rust,no_run
 //! use kiteconnect_async_wasm::connect::KiteConnect;
 //! use kiteconnect_async_wasm::models::mutual_funds::MFOrderParams;
+//! use kiteconnect_async_wasm::models::common::TransactionType;
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = KiteConnect::new("api_key", "access_token");
 //!
 //! // Using typed APIs for better error handling and type safety
-//! let mf_orders = client.mf_orders_typed().await?;
+//! let mf_orders = client.mf_orders_typed(None).await?;
 //! println!("Total MF orders: {}", mf_orders.len());
 //!
 //! let mf_holdings = client.mf_holdings_typed().await?;
 //! println!("Total MF holdings: {}", mf_holdings.len());
 //!
-//! let sips = client.mf_sips_typed().await?;
+//! let sips = client.mf_sips_typed(None).await?;
 //! println!("Active SIPs: {}", sips.len());
 //!
 //! // Type-safe order placement
 //! let order_params = MFOrderParams {
-//!     tradingsymbol: "INF090I01239".to_string(),
-//!     transaction_type: "BUY".to_string(),
+//!     trading_symbol: "INF090I01239".to_string(),
+//!     transaction_type: TransactionType::BUY,
 //!     amount: Some(5000.0),
 //!     quantity: None,
 //!     tag: Some("MONTHLY_INVESTMENT".to_string()),
@@ -313,11 +318,11 @@
 //!
 //! // Diversified portfolio approach
 //! let funds = vec![
-//!     ("INF090I01239", 3000.0, "Large Cap"),      // 30% - Large cap stability
-//!     ("INF090I01247", 2000.0, "Mid Cap"),        // 20% - Mid cap growth
-//!     ("INF090I01255", 1500.0, "Small Cap"),      // 15% - Small cap high growth
-//!     ("INF090I01263", 2000.0, "Debt Fund"),      // 20% - Debt for stability
-//!     ("INF090I01271", 1500.0, "International"),  // 15% - International exposure
+//!     ("INF090I01239", "3000", "Large Cap"),      // 30% - Large cap stability
+//!     ("INF090I01247", "2000", "Mid Cap"),        // 20% - Mid cap growth
+//!     ("INF090I01255", "1500", "Small Cap"),      // 15% - Small cap high growth
+//!     ("INF090I01263", "2000", "Debt Fund"),      // 20% - Debt for stability
+//!     ("INF090I01271", "1500", "International"),  // 15% - International exposure
 //! ];
 //!
 //! for (isin, amount, category) in funds {
@@ -343,18 +348,19 @@
 //!
 //! // Automated SIP setup for long-term wealth building
 //! let sip_strategy = vec![
-//!     ("INF090I01239", 2000.0, "EQUITY_GROWTH"),   // Equity for growth
-//!     ("INF090I01247", 1000.0, "DEBT_STABILITY"),  // Debt for stability
-//!     ("INF090I01255", 500.0, "INTERNATIONAL"),    // International diversification
+//!     ("INF090I01239", "2000", "EQUITY_GROWTH"),   // Equity for growth
+//!     ("INF090I01247", "1000", "DEBT_STABILITY"),  // Debt for stability
+//!     ("INF090I01255", "500", "INTERNATIONAL"),    // International diversification
 //! ];
 //!
 //! for (isin, monthly_amount, tag) in sip_strategy {
 //!     match client.place_mf_sip(
 //!         isin,
 //!         monthly_amount,
-//!         60,              // 5 years (60 months)
+//!         "60",            // 5 years (60 months)
 //!         "monthly",
 //!         None,
+//!         None,            // Instalment day
 //!         Some(tag)
 //!     ).await {
 //!         Ok(sip) => println!("✅ SIP of ₹{}/month set up for {}", monthly_amount, tag),
@@ -404,7 +410,7 @@
 //! let client = KiteConnect::new("api_key", "access_token");
 //!
 //! // Comprehensive error handling for MF operations
-//! match client.place_mf_order("INF090I01239", "BUY", None, Some(5000.0), None).await {
+//! match client.place_mf_order("INF090I01239", "BUY", None, Some("5000"), None).await {
 //!     Ok(order) => {
 //!         println!("✅ Order placed successfully: {:?}", order);
 //!     },
