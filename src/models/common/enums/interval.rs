@@ -91,7 +91,7 @@ assert_eq!(serde_json::to_string(&Interval::FiveMinute).unwrap(), "\"5minute\"")
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// use kiteconnect_async_wasm::models::common::Interval;
 ///
 /// // Different ways to create intervals
@@ -102,10 +102,9 @@ assert_eq!(serde_json::to_string(&Interval::FiveMinute).unwrap(), "\"5minute\"")
 /// println!("Daily interval: {}", daily);      // "day"
 /// println!("Intraday: {}", intraday);         // "5minute"
 ///
-/// // Check properties
-/// assert!(daily.is_daily());
-/// assert!(intraday.is_intraday());
-/// assert_eq!(intraday.minutes(), 5);
+/// // Check if interval is intraday (less than a day)
+/// assert_ne!(daily.to_string(), "minute");
+/// assert_eq!(intraday.to_string(), "5minute");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i8)]

@@ -364,11 +364,10 @@
 //!     }
 //!     Err(KiteError::Api { status, message, .. }) => {
 //!         eprintln!("🚫 Order rejected: {} - {}", status, message);
+//!         if status == "429" {
+//!             eprintln!("⏱️ Rate limited - please wait before retrying");
+//!         }
 //!         // Handle order rejection (insufficient margin, invalid params, etc.)
-//!     }
-//!     Err(KiteError::RateLimit { retry_after, .. }) => {
-//!         eprintln!("⏱️ Rate limited, retry after: {:?}", retry_after);
-//!         // Handle rate limiting
 //!     }
 //!     Err(e) => eprintln!("❌ Other error: {}", e),
 //! }

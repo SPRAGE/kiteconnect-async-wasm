@@ -30,17 +30,29 @@
 //! ## Platform-Specific Behavior
 //!
 //! ### Native Platform (tokio)
-//! ```rust,ignore
+//! ```rust,no_run
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # let client = KiteConnect::new("api_key", "access_token");
 //! // Instruments data is parsed server-side and returned as structured JSON
 //! let instruments = client.instruments(None).await?;
 //! // Returns JsonValue with array of instrument objects
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### WASM Platform
-//! ```rust,ignore
+//! ```rust,no_run
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # let client = KiteConnect::new("api_key", "access_token");
 //! // CSV data is parsed client-side using csv-core for browser compatibility
 //! let instruments = client.instruments(None).await?;
 //! // Returns JsonValue with array of instrument objects (parsed from CSV)
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Available Methods
@@ -88,7 +100,7 @@
 //! ```
 //!
 //! ### Enhanced Historical Data (v1.0.3)
-//! ```rust,ignore
+//! ```rust,no_run
 //! use kiteconnect_async_wasm::connect::KiteConnect;
 //! use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
 //! use kiteconnect_async_wasm::models::common::Interval;
@@ -101,9 +113,9 @@
 //! // Create structured request (v1.0.3 feature)
 //! let request = HistoricalDataRequest::new(
 //!     738561,  // RELIANCE instrument token
-//!     Interval::Day,
 //!     NaiveDateTime::parse_from_str("2023-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")?,
 //!     NaiveDateTime::parse_from_str("2023-12-31 23:59:59", "%Y-%m-%d %H:%M:%S")?,
+//!     Interval::Day,
 //! ).continuous(false)
 //!  .with_oi(true);
 //!
@@ -189,22 +201,26 @@
 //!
 //! All methods return `Result<T>` with comprehensive error information:
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use kiteconnect_async_wasm::models::common::KiteError;
 //!
 //! # #[tokio::main]
-//! # async fn main() {
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let client = kiteconnect_async_wasm::connect::KiteConnect::new("", "");
 //! match client.quote_typed(vec!["INVALID:SYMBOL"]).await {
 //!     Ok(quotes) => println!("Success: {} quotes", quotes.len()),
 //!     Err(KiteError::Api { status, message, .. }) => {
 //!         eprintln!("API Error {}: {}", status, message);
+//!         if status == "429" {
+//!             eprintln!("Rate limited - please wait before retrying");
+//!         }
 //!     }
-//!     Err(KiteError::RateLimit { retry_after, .. }) => {
-//!         eprintln!("Rate limited, retry after: {:?}", retry_after);
+//!     Err(KiteError::Authentication(msg)) => {
+//!         eprintln!("Authentication failed: {}", msg);
 //!     }
 //!     Err(e) => eprintln!("Other error: {}", e),
 //! }
+//! # Ok(())
 //! # }
 //! ```
 //!
