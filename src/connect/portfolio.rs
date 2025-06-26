@@ -145,7 +145,7 @@
 //! ```
 //!
 //! ### Margin Analysis
-//! ```rust,ignore
+//! ```rust,no_run
 //! use kiteconnect_async_wasm::connect::KiteConnect;
 //! use kiteconnect_async_wasm::models::auth::TradingSegment;
 //!
@@ -159,7 +159,7 @@
 //! println!("Margin Analysis:");
 //! println!("===============");
 //!
-//! if let Some(equity_margin) = margins.equity {
+//! if let Some(ref equity_margin) = margins.equity {
 //!     let available = equity_margin.available.cash;
 //!     let net = equity_margin.net;
 //!     let utilisation_pct = equity_margin.utilisation_percentage();
@@ -178,7 +178,7 @@
 //!     }
 //! }
 //!
-//! if let Some(commodity_margin) = margins.commodity {
+//! if let Some(ref commodity_margin) = margins.commodity {
 //!     println!("🌾 Commodity Segment:");
 //!     println!("   Available Cash: ₹{:.2}", commodity_margin.available.cash);
 //!     println!("   Net Margin: ₹{:.2}", commodity_margin.net);

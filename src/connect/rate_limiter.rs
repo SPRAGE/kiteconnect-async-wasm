@@ -96,11 +96,12 @@ impl CategoryLimiter {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// # use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
-    /// # use kiteconnect_async_wasm::connect::rate_limiter::CategoryLimiter;
-    /// let limiter = CategoryLimiter::new(RateLimitCategory::Quote);
-    /// // Quote category: 1 request/second
+    /// # use std::time::Duration;
+    /// // CategoryLimiter is an internal struct - use RateLimiter instead
+    /// // Example shows the rate limiting concept for quote category
+    /// let min_delay = Duration::from_millis(1000); // 1 request/second for quotes
     /// ```
     fn new(category: RateLimitCategory) -> Self {
         Self {
@@ -119,15 +120,13 @@ impl CategoryLimiter {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
-    /// # use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
-    /// # use kiteconnect_async_wasm::connect::rate_limiter::CategoryLimiter;
-    /// let mut limiter = CategoryLimiter::new(RateLimitCategory::Quote);
-    ///
-    /// if limiter.can_request_now() {
-    ///     // Make request immediately
-    /// } else {
-    ///     // Need to wait before making request
+    /// ```rust,no_run
+    /// # use std::time::{Duration, Instant};
+    /// // CategoryLimiter is internal - this shows the concept
+    /// let last_request = Some(Instant::now());
+    /// let min_delay = Duration::from_millis(1000);
+    /// let can_request = last_request.map_or(true, |last| last.elapsed() >= min_delay);
+    /// ```
     /// }
     /// ```
     fn can_request_now(&self) -> bool {
@@ -147,15 +146,15 @@ impl CategoryLimiter {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
-    /// # use kiteconnect_async_wasm::connect::endpoints::RateLimitCategory;
-    /// # use kiteconnect_async_wasm::connect::rate_limiter::CategoryLimiter;
-    /// let mut limiter = CategoryLimiter::new(RateLimitCategory::Quote);
-    ///
-    /// let delay = limiter.delay_until_next_request();
-    /// if !delay.is_zero() {
-    ///     tokio::time::sleep(delay).await;
-    /// }
+    /// ```rust,no_run
+    /// # use std::time::{Duration, Instant};
+    /// // CategoryLimiter is internal - this shows the concept
+    /// let last_request = Some(Instant::now());
+    /// let min_delay = Duration::from_millis(1000);
+    /// let delay = if let Some(last) = last_request {
+    ///     let elapsed = last.elapsed();
+    ///     if elapsed < min_delay { min_delay - elapsed } else { Duration::ZERO }
+    /// } else { Duration::ZERO };
     /// ```
     fn delay_until_next_request(&self) -> Duration {
         if let Some(last) = self.last_request {
@@ -215,19 +214,19 @@ impl CategoryLimiter {
 ///
 /// ## Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use kiteconnect_async_wasm::connect::rate_limiter::RateLimiter;
-/// use kiteconnect_async_wasm::connect::endpoints::{KiteEndpoint, RateLimitCategory};
+/// use kiteconnect_async_wasm::connect::endpoints::KiteEndpoint;
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let rate_limiter = RateLimiter::new(true); // enabled
 ///
-/// // Check if request can proceed
-/// rate_limiter.check_rate_limit(KiteEndpoint::Quote).await?;
+/// // Wait for rate limit to allow the request
+/// rate_limiter.wait_for_request(&KiteEndpoint::Quote).await;
 ///
-/// // Record that request was made  
-/// rate_limiter.record_request(KiteEndpoint::Quote).await;
+/// // Check if request can proceed immediately
+/// let can_proceed = rate_limiter.can_request_immediately(&KiteEndpoint::Quote).await;
 /// # Ok(())
 /// # }
 /// ```

@@ -19,14 +19,16 @@
 //!
 //! ## Example
 //!
-//! ```rust,ignore
-//! use kiteconnect_async_wasm::connect::utils::parse_csv_with_core;
+//! ```rust,no_run
+//! // CSV parsing is handled internally by the KiteConnect client
+//! use kiteconnect_async_wasm::connect::KiteConnect;
 //!
-//! # #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let csv_data = "header1,header2\nvalue1,value2\n";
-//! let parsed = parse_csv_with_core(csv_data)?;
-//! println!("Parsed CSV: {:?}", parsed);
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//! // CSV parsing happens automatically when fetching instruments
+//! let instruments = client.instruments(None).await?;
+//! println!("Parsed {} instruments", instruments.as_array().unwrap().len());
 //! # Ok(())
 //! # }
 //! ```

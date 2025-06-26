@@ -336,7 +336,7 @@
 //!
 //! All methods return `Result<T>` with comprehensive error information:
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use kiteconnect_async_wasm::models::common::KiteError;
 //!
 //! # #[tokio::main]
