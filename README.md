@@ -1,4 +1,4 @@
-# KiteConnect Async WASM v1.0.2
+# KiteConnect Async WASM v1.0.3
 
 > ⚠️ **IMPORTANT DISCLAIMER** ⚠️
 > 
@@ -20,8 +20,11 @@
 
 A production-ready, high-performance Rust library for KiteConnect API integration featuring both legacy and strongly-typed APIs.
 
-## 🚀 Features v1.0.2
+## 🚀 Features v1.0.3
 
+- ✅ **Enhanced Historical Data API** - New `HistoricalDataRequest` struct with `NaiveDateTime` precision
+- ✅ **Dual Serde Support** - Flexible Interval enum accepting both strings and integers
+- ✅ **Organized Enum System** - Modular enum structure for better maintainability
 - ✅ **Dual API Support** - Legacy JSON + new strongly-typed APIs
 - ✅ **Automatic Retry Logic** with exponential backoff
 - ✅ **Response Caching** for performance optimization
@@ -30,7 +33,7 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 - ✅ **Thread-Safe Design** with connection pooling
 - ✅ **Comprehensive Documentation** with migration guide
 - ✅ **Backward Compatibility** - all existing code continues to work
-- ✅ **Automated Releases** - CI/CD with automated publishing
+- ✅ **Professional Code Quality** - Clippy optimized and formatted
 
 ## 🎯 Quick Start
 
@@ -38,7 +41,7 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 
 ```toml
 [dependencies]
-kiteconnect-async-wasm = "1.0.3", features = ["native"] }
+kiteconnect-async-wasm = "1.0.3"
 
 # For WASM targets
 # kiteconnect-async-wasm = "1.0.3", features = ["wasm"] }
@@ -106,19 +109,52 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     Ok(())
 }
-    let loginurl = kiteconnect.login_url();
-    println!("{:?}", loginurl);
+```
 
-    // Generate access token with the above request token
-    let resp = kiteconnect.generate_session("<REQUEST-TOKEN>", "<API-SECRET>").await?;
-    // `generate_session` internally sets the access token from the response
-    println!("{:?}", resp);
+### Enhanced Historical Data API (v1.0.3)
 
-    let holdings: JsonValue = kiteconnect.holdings().await?;
-    println!("{:?}", holdings);
+```rust
+use kiteconnect_async_wasm::connect::KiteConnect;
+use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
+use kiteconnect_async_wasm::models::common::Interval;
+use chrono::NaiveDateTime;
 
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = KiteConnect::new("api_key", "access_token");
+    
+    // New structured approach with precise datetime handling
+    let request = HistoricalDataRequest::new(
+        738561,  // RELIANCE instrument token
+        NaiveDateTime::parse_from_str("2023-11-01 09:15:00", "%Y-%m-%d %H:%M:%S")?,
+        NaiveDateTime::parse_from_str("2023-11-30 15:30:00", "%Y-%m-%d %H:%M:%S")?,
+        Interval::Day,
+    ).continuous(false).with_oi(true);
+    
+    let historical_data = client.historical_data_typed(request).await?;
+    
+    println!("Received {} candles", historical_data.candles.len());
+    for candle in &historical_data.candles {
+        println!("Date: {}, OHLC: {}/{}/{}/{}, Volume: {}", 
+            candle.date, candle.open, candle.high, candle.low, candle.close, candle.volume);
+    }
+    
     Ok(())
 }
+```
+
+### Flexible Interval Usage (v1.0.3)
+
+```rust
+use kiteconnect_async_wasm::models::common::Interval;
+
+// Accepts both string and integer formats
+let from_string: Interval = serde_json::from_str("\"day\"").unwrap();
+let from_integer: Interval = serde_json::from_str("0").unwrap();  // 0 = Day
+
+// Always serializes as strings
+assert_eq!(serde_json::to_string(&Interval::Day).unwrap(), "\"day\"");
+assert_eq!(serde_json::to_string(&Interval::Minute).unwrap(), "\"minute\"");
 ```
 
 ## Running Examples
@@ -127,6 +163,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```bash
 cargo run --example connect_sample
+cargo run --example historical_data_typed_example
+cargo run --example endpoint_management_demo
 ```
 
 ## ✅ **Completed Features**

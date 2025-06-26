@@ -1,26 +1,37 @@
-# KiteConnect Async WASM v1.0.0 Migration Guide
+# KiteConnect Async WASM Migration Guide
 
-## Overview
+## 📋 Migration Guide Overview
 
-KiteConnect v1.0.0 introduces significant improvements while maintaining backward compatibility. This guide helps you migrate from earlier versions and leverage the new features.
+This document provides migration information for different version ranges:
 
-## 🚀 Key Features in v1.0.0
+- **For v1.0.2 → v1.0.3**: See [`V1_MIGRATION_GUIDE.md`](V1_MIGRATION_GUIDE.md) - Enhanced APIs and type safety
+- **For v0.x → v1.0.0**: See below for complete overhaul migration
 
-### 1. Dual API Support
+---
+
+## KiteConnect v1.0.0 Migration Guide (from v0.x)
+
+### Overview
+
+KiteConnect v1.0.0 introduces significant improvements while maintaining backward compatibility. This guide helps you migrate from earlier versions (v0.x) to leverage the new features.
+
+### 🚀 Key Features in v1.0.0
+
+#### 1. Dual API Support
 - **Legacy API**: All existing methods still work as before (returns `JsonValue`)
 - **Typed API**: New strongly-typed methods with `_typed` suffix (returns structured types)
 
-### 2. Enhanced Error Handling
+#### 2. Enhanced Error Handling
 - Comprehensive error types with proper context
 - Automatic retry mechanism with exponential backoff
 - Better error messages and debugging information
 
-### 3. Performance Optimizations
+#### 3. Performance Optimizations
 - Response caching for instruments data
 - Connection pooling and reuse
 - Optimized JSON parsing and serialization
 
-### 4. WASM Compatibility
+#### 4. WASM Compatibility
 - Full WebAssembly support with platform-specific optimizations
 - CSV parsing optimized for both native and WASM environments
 

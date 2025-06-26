@@ -1,6 +1,340 @@
 //! # GTT (Good Till Triggered) Module
 //!
-//! This module contains GTT-related methods for the KiteConnect API.
+//! This module provides comprehensive GTT (Good Till Triggered) order management functionality
+//! for the KiteConnect API. GTT orders are advanced conditional orders that remain active until
+//! triggered by specific market conditions or manually cancelled.
+//!
+//! ## Overview
+//!
+//! GTT orders allow you to:
+//! - Set stop-loss orders that trigger when price moves against your position
+//! - Set target orders that trigger when price reaches your profit target
+//! - Create bracket orders (OCO - One Cancels Other) with both stop-loss and target
+//! - Monitor and manage conditional orders without constant market watching
+//!
+//! ## GTT Types
+//!
+//! ### Single Trigger GTT
+//! A single trigger GTT executes one order when a specific price level is reached.
+//!
+//! ### Two-Leg GTT (OCO - One Cancels Other)
+//! A two-leg GTT contains two orders where execution of one automatically cancels the other.
+//! This is commonly used for bracket orders with both stop-loss and target prices.
+//!
+//! ## Basic Usage
+//!
+//! ### Creating a Simple Stop-Loss GTT
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use serde_json::json;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Place a stop-loss GTT - sell 10 shares of RELIANCE when price drops to ₹2000
+//! let stop_loss_gtt = client.place_gtt(
+//!     "single",           // Single trigger type
+//!     "RELIANCE",         // Trading symbol
+//!     "NSE",              // Exchange
+//!     &[2000.0],          // Trigger price
+//!     2100.0,             // Current market price
+//!     &[json!({
+//!         "transaction_type": "SELL",
+//!         "quantity": 10,
+//!         "order_type": "MARKET",
+//!         "product": "CNC"
+//!     })]
+//! ).await?;
+//!
+//! println!("Stop-loss GTT placed: {:?}", stop_loss_gtt);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Creating a Target GTT
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use serde_json::json;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Place a target GTT - sell 10 shares of RELIANCE when price reaches ₹2200
+//! let target_gtt = client.place_gtt(
+//!     "single",           // Single trigger type
+//!     "RELIANCE",         // Trading symbol
+//!     "NSE",              // Exchange
+//!     &[2200.0],          // Target price
+//!     2100.0,             // Current market price
+//!     &[json!({
+//!         "transaction_type": "SELL",
+//!         "quantity": 10,
+//!         "order_type": "LIMIT",
+//!         "product": "CNC",
+//!         "price": 2200.0
+//!     })]
+//! ).await?;
+//!
+//! println!("Target GTT placed: {:?}", target_gtt);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Creating a Bracket GTT (OCO - One Cancels Other)
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use serde_json::json;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Place a bracket GTT with both stop-loss and target
+//! let bracket_gtt = client.place_gtt(
+//!     "two-leg",          // Two-leg trigger type (OCO)
+//!     "RELIANCE",         // Trading symbol
+//!     "NSE",              // Exchange
+//!     &[2000.0, 2200.0],  // Stop-loss and target prices
+//!     2100.0,             // Current market price
+//!     &[
+//!         // Stop-loss order (market order)
+//!         json!({
+//!             "transaction_type": "SELL",
+//!             "quantity": 10,
+//!             "order_type": "MARKET",
+//!             "product": "CNC"
+//!         }),
+//!         // Target order (limit order)
+//!         json!({
+//!             "transaction_type": "SELL",
+//!             "quantity": 10,
+//!             "order_type": "LIMIT",
+//!             "product": "CNC",
+//!             "price": 2200.0
+//!         })
+//!     ]
+//! ).await?;
+//!
+//! println!("Bracket GTT placed: {:?}", bracket_gtt);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Advanced Usage with Builder Patterns
+//!
+//! For more complex GTT orders, you can use the builder patterns provided in the models:
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::models::gtt::{StopLossGTTBuilder, BracketGTTBuilder};
+//! use kiteconnect_async_wasm::models::common::{Exchange, TransactionType, Product};
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create a stop-loss GTT using the builder pattern
+//! let stop_loss_gtt = StopLossGTTBuilder::new()
+//!     .exchange(Exchange::NSE)
+//!     .trading_symbol("RELIANCE")
+//!     .transaction_type(TransactionType::SELL)
+//!     .product(Product::CNC)
+//!     .quantity(10)
+//!     .trigger_price(2000.0)
+//!     .current_price(2100.0)
+//!     .build_market()?;  // Creates market order on trigger
+//!
+//! // Create a bracket GTT using the builder pattern
+//! let bracket_gtt = BracketGTTBuilder::new()
+//!     .exchange(Exchange::NSE)
+//!     .trading_symbol("RELIANCE")
+//!     .transaction_type(TransactionType::SELL)
+//!     .product(Product::CNC)
+//!     .quantity(10)
+//!     .stop_loss_price(2000.0)
+//!     .target_price(2200.0)
+//!     .current_price(2100.0)
+//!     .build()?;
+//!
+//! println!("GTT parameters ready for placement");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## GTT Management Operations
+//!
+//! ### Retrieving GTT Orders
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all GTT orders
+//! let all_gtts = client.get_gtts(None).await?;
+//! println!("All GTT orders: {:?}", all_gtts);
+//!
+//! // Get specific GTT order details
+//! let gtt_details = client.get_gtts(Some("123456")).await?;
+//! println!("GTT 123456 details: {:?}", gtt_details);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Modifying GTT Orders
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use serde_json::json;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Modify an existing GTT order
+//! let modified_gtt = client.modify_gtt(
+//!     "123456",           // GTT ID to modify
+//!     "single",           // Trigger type
+//!     "RELIANCE",         // Trading symbol
+//!     "NSE",              // Exchange
+//!     &[1950.0],          // New trigger price (lowered from 2000)
+//!     2100.0,             // Current market price
+//!     &[json!({
+//!         "transaction_type": "SELL",
+//!         "quantity": 15,  // Increased quantity
+//!         "order_type": "MARKET",
+//!         "product": "CNC"
+//!     })]
+//! ).await?;
+//!
+//! println!("GTT modified: {:?}", modified_gtt);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Cancelling GTT Orders
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Cancel a GTT order
+//! let cancellation_result = client.delete_gtt("123456").await?;
+//! println!("GTT cancelled: {:?}", cancellation_result);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Best Practices
+//!
+//! ### 1. Risk Management
+//!
+//! - **Always set stop-losses**: Use GTT orders to automatically limit losses
+//! - **Position sizing**: Never risk more than 1-2% of your capital per trade
+//! - **Multiple GTTs**: Use bracket orders to capture profits and limit losses simultaneously
+//!
+//! ### 2. Price Setting Guidelines
+//!
+//! - **Stop-loss placement**: Set 3-5% below entry price for swing trades
+//! - **Target placement**: Use risk-reward ratio of at least 1:2 (target = 2x stop-loss distance)
+//! - **Market conditions**: Adjust trigger levels based on volatility and support/resistance levels
+//!
+//! ### 3. Order Types
+//!
+//! - **Market orders**: Use for stop-losses when quick execution is priority
+//! - **Limit orders**: Use for targets to ensure specific price execution
+//! - **Slippage consideration**: Account for potential slippage in volatile markets
+//!
+//! ### 4. Monitoring and Maintenance
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use std::time::Duration;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Regular GTT monitoring loop
+//! loop {
+//!     let gtts = client.get_gtts(None).await?;
+//!     
+//!     // Process GTT status and take action if needed
+//!     // - Check for triggered GTTs
+//!     // - Update stop-losses based on favorable price movement
+//!     // - Cancel outdated GTTs
+//!     
+//!     println!("GTT status check completed");
+//!     
+//!     // Wait before next check (respect rate limits)
+//!     tokio::time::sleep(Duration::from_secs(300)).await; // Check every 5 minutes
+//! }
+//! # }
+//! ```
+//!
+//! ## Error Handling
+//!
+//! GTT operations can fail for various reasons. Always implement proper error handling:
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use serde_json::json;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! match client.place_gtt(
+//!     "single",
+//!     "RELIANCE",
+//!     "NSE",
+//!     &[2000.0],
+//!     2100.0,
+//!     &[json!({
+//!         "transaction_type": "SELL",
+//!         "quantity": 10,
+//!         "order_type": "MARKET",
+//!         "product": "CNC"
+//!     })]
+//! ).await {
+//!     Ok(response) => {
+//!         println!("✅ GTT placed successfully: {:?}", response);
+//!     },
+//!     Err(e) => {
+//!         eprintln!("❌ GTT placement failed: {}", e);
+//!         // Handle specific error cases:
+//!         // - Invalid price levels
+//!         // - Insufficient margin
+//!         // - Invalid instrument
+//!         // - Rate limiting
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Platform Compatibility
+//!
+//! This GTT module works seamlessly across platforms:
+//! - **Native (Desktop/Server)**: Full functionality with optimal performance
+//! - **WASM (Browser)**: Complete GTT management in web applications
+//! - **Cross-platform**: Identical API surface and behavior
+//!
+//! ## Rate Limiting
+//!
+//! GTT operations are subject to API rate limits:
+//! - **Standard category**: 10 requests per second
+//! - **Automatic handling**: Built-in rate limiting with retry logic
+//! - **Best practice**: Batch multiple operations when possible
+//!
+//! For high-frequency GTT management, consider implementing local caching and
+//! batching strategies to minimize API calls.
 
 use crate::connect::endpoints::KiteEndpoint;
 use crate::connect::KiteConnect;
@@ -198,6 +532,7 @@ impl KiteConnect {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub async fn modify_gtt(
         &self,
         gtt_id: &str,

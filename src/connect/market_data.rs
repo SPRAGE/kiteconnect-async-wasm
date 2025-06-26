@@ -1,6 +1,244 @@
 //! # Market Data Module
 //!
-//! This module contains market data methods for the KiteConnect API.
+//! This module provides comprehensive market data access for the KiteConnect API v1.0.3,
+//! offering both real-time and historical market information with full cross-platform support.
+//!
+//! ## Overview
+//!
+//! The market data module is the core component for accessing all market-related information
+//! including instruments, quotes, historical data, and market depth. It provides both legacy
+//! JSON-based APIs and modern strongly-typed APIs for enhanced developer experience.
+//!
+//! ## Key Features
+//!
+//! ### 🔄 **Dual API Support**
+//! - **Legacy API**: Returns `JsonValue` for backward compatibility
+//! - **Typed API**: Returns structured types with compile-time safety (methods ending in `_typed`)
+//!
+//! ### 📊 **Comprehensive Data Coverage**
+//! - **Real-time Quotes**: Live prices, OHLC, volume, and market depth
+//! - **Historical Data**: OHLCV candlestick data with v1.0.3 enhanced API
+//! - **Instruments Master**: Complete instrument list with metadata
+//! - **Market Status**: Exchange timings and market state information
+//!
+//! ### 🌐 **Cross-Platform Optimization**
+//! - **Native**: Uses `csv` crate for efficient parsing with structured JSON output
+//! - **WASM**: Uses `csv-core` for no-std CSV parsing in browser environments
+//! - **Rate Limiting**: Automatic rate limiting respecting KiteConnect API limits
+//! - **Error Handling**: Comprehensive error types with context
+//!
+//! ## Platform-Specific Behavior
+//!
+//! ### Native Platform (tokio)
+//! ```rust
+//! // Instruments data is parsed server-side and returned as structured JSON
+//! let instruments = client.instruments(None).await?;
+//! // Returns JsonValue with array of instrument objects
+//! ```
+//!
+//! ### WASM Platform
+//! ```rust
+//! // CSV data is parsed client-side using csv-core for browser compatibility
+//! let instruments = client.instruments(None).await?;
+//! // Returns JsonValue with array of instrument objects (parsed from CSV)
+//! ```
+//!
+//! ## Available Methods
+//!
+//! ### Instruments and Market Data
+//! - [`instruments()`](KiteConnect::instruments) - Get complete instruments list (cached for performance)
+//! - [`mf_instruments()`](KiteConnect::mf_instruments) - Get mutual fund instruments
+//! - [`quote()`](KiteConnect::quote) / [`quote_typed()`](KiteConnect::quote_typed) - Real-time quotes
+//! - [`ohlc()`](KiteConnect::ohlc) / [`ohlc_typed()`](KiteConnect::ohlc_typed) - OHLC data
+//! - [`ltp()`](KiteConnect::ltp) / [`ltp_typed()`](KiteConnect::ltp_typed) - Last traded price
+//!
+//! ### Historical Data (Enhanced in v1.0.3)
+//! - [`historical_data()`](KiteConnect::historical_data) - Legacy historical data API
+//! - [`historical_data_typed()`](KiteConnect::historical_data_typed) - New structured request API
+//!
+//! ### Market Information
+//! - [`trigger_range()`](KiteConnect::trigger_range) - Get trigger range for instruments
+//! - [`instruments_margins()`](KiteConnect::instruments_margins) - Get margin requirements
+//!
+//! ## Usage Examples
+//!
+//! ### Basic Real-time Quote
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get real-time quote (legacy API)
+//! let quote = client.quote(vec!["NSE:RELIANCE", "BSE:SENSEX"]).await?;
+//! println!("Quote data: {}", quote);
+//!
+//! // Get real-time quote (typed API - recommended)
+//! let quotes = client.quote_typed(vec!["NSE:RELIANCE"]).await?;
+//! for quote in quotes {
+//!     println!("{}: ₹{:.2} ({}{})",
+//!         quote.trading_symbol,
+//!         quote.last_price,
+//!         if quote.net_change >= 0.0 { "+" } else { "" },
+//!         quote.net_change);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Enhanced Historical Data (v1.0.3)
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
+//! use kiteconnect_async_wasm::models::common::Interval;
+//! use chrono::NaiveDateTime;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Create structured request (v1.0.3 feature)
+//! let request = HistoricalDataRequest::new(
+//!     738561,  // RELIANCE instrument token
+//!     Interval::Day,
+//!     NaiveDateTime::parse_from_str("2023-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")?,
+//!     NaiveDateTime::parse_from_str("2023-12-31 23:59:59", "%Y-%m-%d %H:%M:%S")?,
+//! ).continuous(false)
+//!  .with_oi(true);
+//!
+//! let historical = client.historical_data_typed(request).await?;
+//! println!("Retrieved {} candles", historical.candles.len());
+//!
+//! for candle in &historical.candles[..5] {  // Show first 5 candles
+//!     println!("{}: O:{:.2} H:{:.2} L:{:.2} C:{:.2} V:{}",
+//!         candle.date.format("%Y-%m-%d"),
+//!         candle.open, candle.high, candle.low, candle.close, candle.volume);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Market Depth Analysis
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! let quotes = client.quote_typed(vec!["NSE:RELIANCE"]).await?;
+//! for quote in quotes {
+//!     // Analyze market depth
+//!     if let (Some(bid), Some(ask)) = (quote.bid_price(), quote.ask_price()) {
+//!         let spread = ask - bid;
+//!         let spread_pct = (spread / bid) * 100.0;
+//!         
+//!         println!("Market Depth for {}:", quote.trading_symbol);
+//!         println!("  Bid: ₹{:.2} | Ask: ₹{:.2}", bid, ask);
+//!         println!("  Spread: ₹{:.2} ({:.2}%)", spread, spread_pct);
+//!         println!("  Bid Volume: {} | Ask Volume: {}",
+//!             quote.total_bid_quantity(), quote.total_ask_quantity());
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Instruments Search and Analysis
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::connect::KiteConnect;
+//!
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = KiteConnect::new("api_key", "access_token");
+//!
+//! // Get all instruments (cached automatically)
+//! let instruments = client.instruments(None).await?;
+//!
+//! // On WASM, this returns structured JSON parsed from CSV
+//! // On native, this returns structured JSON from server-side parsing
+//! if let Some(instruments_array) = instruments.as_array() {
+//!     println!("Total instruments available: {}", instruments_array.len());
+//!     
+//!     // Find specific instruments
+//!     let reliance_instruments: Vec<_> = instruments_array
+//!         .iter()
+//!         .filter(|inst| inst["name"].as_str().unwrap_or("").contains("RELIANCE"))
+//!         .collect();
+//!     
+//!     println!("Found {} RELIANCE instruments", reliance_instruments.len());
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Performance Considerations
+//!
+//! ### Caching
+//! - **Instruments Data**: Automatically cached for 1 hour to reduce API calls
+//! - **Rate Limiting**: Built-in rate limiting prevents API quota exhaustion
+//! - **Connection Pooling**: HTTP connections are reused for better performance
+//!
+//! ### Memory Usage
+//! - **WASM Builds**: Optimized for browser memory constraints
+//! - **Native Builds**: Can handle large datasets efficiently
+//! - **Streaming**: Large CSV responses are processed incrementally
+//!
+//! ## Error Handling
+//!
+//! All methods return `Result<T>` with comprehensive error information:
+//!
+//! ```rust,no_run
+//! use kiteconnect_async_wasm::models::common::KiteError;
+//!
+//! # #[tokio::main]
+//! # async fn main() {
+//! # let client = kiteconnect_async_wasm::connect::KiteConnect::new("", "");
+//! match client.quote_typed(vec!["INVALID:SYMBOL"]).await {
+//!     Ok(quotes) => println!("Success: {} quotes", quotes.len()),
+//!     Err(KiteError::Api { status, message, .. }) => {
+//!         eprintln!("API Error {}: {}", status, message);
+//!     }
+//!     Err(KiteError::RateLimit { retry_after, .. }) => {
+//!         eprintln!("Rate limited, retry after: {:?}", retry_after);
+//!     }
+//!     Err(e) => eprintln!("Other error: {}", e),
+//! }
+//! # }
+//! ```
+//!
+//! ## Rate Limiting
+//!
+//! The module automatically handles rate limiting according to KiteConnect API guidelines:
+//! - **Market Data**: 3 requests per second
+//! - **Historical Data**: 3 requests per second with higher limits for minute data
+//! - **Quotes**: Optimized batching for multiple instruments
+//!
+//! ## Migration from v1.0.2
+//!
+//! All existing methods continue to work. New typed methods provide enhanced features:
+//! - Replace `historical_data()` with `historical_data_typed()` for structured requests
+//! - Use `quote_typed()`, `ohlc_typed()`, `ltp_typed()` for type safety
+//! - Legacy methods remain available for backward compatibility
+//!
+//! ## Thread Safety
+//!
+//! All methods are thread-safe and can be called concurrently:
+//! ```rust,no_run
+//! # use kiteconnect_async_wasm::connect::KiteConnect;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # let client = KiteConnect::new("", "");
+//! // Concurrent requests
+//! let (quotes, ohlc, ltp) = tokio::try_join!(
+//!     client.quote_typed(vec!["NSE:RELIANCE"]),
+//!     client.ohlc_typed(vec!["NSE:INFY"]),
+//!     client.ltp_typed(vec!["NSE:TCS"])
+//! )?;
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::connect::endpoints::KiteEndpoint;
 use anyhow::Result;
