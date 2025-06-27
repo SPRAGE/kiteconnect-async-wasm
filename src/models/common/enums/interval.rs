@@ -347,4 +347,106 @@ impl Interval {
             Interval::Day,
         ]
     }
+
+    /// Get the maximum number of days allowed for historical data retrieval for this interval
+    ///
+    /// These limits are based on KiteConnect API restrictions for historical data requests.
+    /// Attempting to retrieve data beyond these limits will result in API errors.
+    ///
+    /// # Returns
+    ///
+    /// Maximum number of days that can be requested in a single historical data call
+    ///
+    /// # Limits
+    ///
+    /// - **Daily**: 2000 days (about 5.5 years)
+    /// - **1-minute**: 30 days
+    /// - **3-minute**: 90 days  
+    /// - **5-minute**: 90 days
+    /// - **10-minute**: 90 days
+    /// - **15-minute**: 180 days
+    /// - **30-minute**: 180 days
+    /// - **60-minute**: 365 days (1 year)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use kiteconnect_async_wasm::models::common::Interval;
+    ///
+    /// assert_eq!(Interval::Day.max_days_allowed(), 2000);
+    /// assert_eq!(Interval::Minute.max_days_allowed(), 30);
+    /// assert_eq!(Interval::FiveMinute.max_days_allowed(), 90);
+    /// assert_eq!(Interval::SixtyMinute.max_days_allowed(), 365);
+    /// ```
+    pub fn max_days_allowed(&self) -> u32 {
+        match self {
+            Interval::Day => 2000,
+            Interval::Minute => 30,
+            Interval::ThreeMinute => 90,
+            Interval::FiveMinute => 90,
+            Interval::TenMinute => 90,
+            Interval::FifteenMinute => 180,
+            Interval::ThirtyMinute => 180,
+            Interval::SixtyMinute => 365,
+        }
+    }
+
+    /// Check if a date range is within the allowed limits for this interval
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - Start date
+    /// * `to` - End date
+    ///
+    /// # Returns
+    ///
+    /// `true` if the date range is within limits, `false` otherwise
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use kiteconnect_async_wasm::models::common::Interval;
+    /// use chrono::NaiveDateTime;
+    ///
+    /// let from = NaiveDateTime::parse_from_str("2023-11-01 09:15:00", "%Y-%m-%d %H:%M:%S").unwrap();
+    /// let to = NaiveDateTime::parse_from_str("2023-11-30 15:30:00", "%Y-%m-%d %H:%M:%S").unwrap();
+    ///
+    /// assert!(Interval::Day.is_date_range_valid(&from, &to));
+    /// assert!(Interval::FiveMinute.is_date_range_valid(&from, &to));
+    /// ```
+    pub fn is_date_range_valid(&self, from: &chrono::NaiveDateTime, to: &chrono::NaiveDateTime) -> bool {
+        if to <= from {
+            return false;
+        }
+        
+        let duration = *to - *from;
+        let days = duration.num_days() as u32;
+        
+        days <= self.max_days_allowed()
+    }
+
+    /// Calculate the maximum allowed "to" date given a "from" date for this interval
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - Start date
+    ///
+    /// # Returns
+    ///
+    /// Maximum allowed end date for historical data retrieval
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use kiteconnect_async_wasm::models::common::Interval;
+    /// use chrono::NaiveDateTime;
+    ///
+    /// let from = NaiveDateTime::parse_from_str("2023-11-01 09:15:00", "%Y-%m-%d %H:%M:%S").unwrap();
+    /// let max_to = Interval::FiveMinute.max_to_date(&from);
+    ///
+    /// println!("For 5-minute data starting {}, maximum end date is {}", from, max_to);
+    /// ```
+    pub fn max_to_date(&self, from: &chrono::NaiveDateTime) -> chrono::NaiveDateTime {
+        *from + chrono::Duration::days(self.max_days_allowed() as i64)
+    }
 }
