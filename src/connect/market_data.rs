@@ -1068,6 +1068,8 @@ impl KiteConnect {
                         break;
                     }
 
+                    #[cfg(feature = "debug")]
+                    let candles_count = chunk_data.candles.len();
                     all_candles.extend(chunk_data.candles);
                     _successful_chunks += 1;
                     
@@ -1076,7 +1078,7 @@ impl KiteConnect {
                         "Chunk {}/{} completed successfully: {} candles retrieved",
                         i + 1,
                         chunk_requests.len(),
-                        chunk_data.candles.len()
+                        candles_count
                     );
                 }
                 Err(e) => {
