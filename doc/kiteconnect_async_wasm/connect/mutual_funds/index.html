@@ -1,0 +1,366 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Mutual Funds Module"><title>kiteconnect_async_wasm::connect::mutual_funds - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="kiteconnect_async_wasm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../../static.files/storage-82c7156e.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../kiteconnect_async_wasm/index.html">kiteconnect_<wbr>async_<wbr>wasm</a><span class="version">1.0.6</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module mutual_<wbr>funds</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#mutual-funds-module" title="Mutual Funds Module">Mutual Funds Module</a><ul><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#mutual-fund-operations" title="Mutual Fund Operations">Mutual Fund Operations</a></li><li><a href="#advanced-usage-with-typed-apis" title="Advanced Usage with Typed APIs">Advanced Usage with Typed APIs</a></li><li><a href="#investment-strategies-and-best-practices" title="Investment Strategies and Best Practices">Investment Strategies and Best Practices</a></li><li><a href="#error-handling-best-practices" title="Error Handling Best Practices">Error Handling Best Practices</a></li><li><a href="#performance-monitoring-and-analytics" title="Performance Monitoring and Analytics">Performance Monitoring and Analytics</a></li><li><a href="#rate-limiting-and-api-compliance" title="Rate Limiting and API Compliance">Rate Limiting and API Compliance</a></li><li><a href="#platform-compatibility" title="Platform Compatibility">Platform Compatibility</a></li></ul></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In kiteconnect_<wbr>async_<wbr>wasm::<wbr>connect</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">kiteconnect_async_wasm</a>::<wbr><a href="../index.html">connect</a></div><h1>Module <span>mutual_funds</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/kiteconnect_async_wasm/connect/mutual_funds.rs.html#1-1270">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="mutual-funds-module"><a class="doc-anchor" href="#mutual-funds-module">§</a>Mutual Funds Module</h2>
+<p>This module provides comprehensive mutual fund investment and management functionality
+for the KiteConnect API. It supports all major mutual fund operations including orders,
+SIPs (Systematic Investment Plans), holdings management, and fund discovery.</p>
+<h3 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h3>
+<p>The mutual funds module enables you to:</p>
+<ul>
+<li><strong>Place Orders</strong>: Buy and sell mutual fund units</li>
+<li><strong>Manage SIPs</strong>: Set up and manage systematic investment plans</li>
+<li><strong>Track Holdings</strong>: Monitor your mutual fund portfolio</li>
+<li><strong>Fund Discovery</strong>: Access comprehensive mutual fund database</li>
+<li><strong>Performance Analysis</strong>: Track returns and analyze fund performance</li>
+</ul>
+<h3 id="mutual-fund-operations"><a class="doc-anchor" href="#mutual-fund-operations">§</a>Mutual Fund Operations</h3><h4 id="1-fund-discovery-and-information"><a class="doc-anchor" href="#1-fund-discovery-and-information">§</a>1. Fund Discovery and Information</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get all available mutual funds
+</span><span class="kw">let </span>all_funds = client.mf_instruments().<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Available mutual funds: {}"</span>, all_funds.as_array().map(|a| a.len()).unwrap_or(<span class="number">0</span>));
+
+<span class="comment">// Search for specific fund categories
+// Filter by AMC, category, risk level, etc.</span></code></pre></div>
+<h4 id="2-placing-mutual-fund-orders"><a class="doc-anchor" href="#2-placing-mutual-fund-orders">§</a>2. Placing Mutual Fund Orders</h4><h5 id="buy-orders-investment"><a class="doc-anchor" href="#buy-orders-investment">§</a>Buy Orders (Investment)</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Method 1: Buy by amount (recommended for most cases)
+</span><span class="kw">let </span>buy_order = client.place_mf_order(
+    <span class="string">"INF090I01239"</span>,     <span class="comment">// Fund ISIN (e.g., SBI Blue Chip Fund)
+    </span><span class="string">"BUY"</span>,              <span class="comment">// Transaction type
+    </span><span class="prelude-val">None</span>,               <span class="comment">// Quantity (not needed for amount-based orders)
+    </span><span class="prelude-val">Some</span>(<span class="string">"5000"</span>),       <span class="comment">// Investment amount in rupees
+    </span><span class="prelude-val">None                </span><span class="comment">// Tag (optional)
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"MF buy order placed: {:?}"</span>, buy_order);
+
+<span class="comment">// Method 2: Buy by units (if you know exact units needed)
+</span><span class="kw">let </span>unit_buy_order = client.place_mf_order(
+    <span class="string">"INF090I01239"</span>,     <span class="comment">// Fund ISIN
+    </span><span class="string">"BUY"</span>,              <span class="comment">// Transaction type
+    </span><span class="prelude-val">Some</span>(<span class="string">"100"</span>),        <span class="comment">// Exact units to buy
+    </span><span class="prelude-val">None</span>,               <span class="comment">// Amount (not needed for unit-based orders)
+    </span><span class="prelude-val">Some</span>(<span class="string">"INVESTMENT"</span>)  <span class="comment">// Optional tag for tracking
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"MF unit buy order placed: {:?}"</span>, unit_buy_order);</code></pre></div>
+<h5 id="sell-orders-redemption"><a class="doc-anchor" href="#sell-orders-redemption">§</a>Sell Orders (Redemption)</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Sell specific units
+</span><span class="kw">let </span>sell_order = client.place_mf_order(
+    <span class="string">"INF090I01239"</span>,     <span class="comment">// Fund ISIN
+    </span><span class="string">"SELL"</span>,             <span class="comment">// Transaction type
+    </span><span class="prelude-val">Some</span>(<span class="string">"50"</span>),         <span class="comment">// Units to sell
+    </span><span class="prelude-val">None</span>,               <span class="comment">// Amount (not used for sell orders)
+    </span><span class="prelude-val">Some</span>(<span class="string">"PARTIAL_REDEMPTION"</span>) <span class="comment">// Optional tag
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"MF sell order placed: {:?}"</span>, sell_order);
+
+<span class="comment">// Full redemption (sell all units)
+</span><span class="kw">let </span>full_redemption = client.place_mf_order(
+    <span class="string">"INF090I01239"</span>,     <span class="comment">// Fund ISIN
+    </span><span class="string">"SELL"</span>,             <span class="comment">// Transaction type
+    </span><span class="prelude-val">Some</span>(<span class="string">"0"</span>),          <span class="comment">// 0 units = full redemption
+    </span><span class="prelude-val">None</span>,               <span class="comment">// Amount not used
+    </span><span class="prelude-val">Some</span>(<span class="string">"FULL_REDEMPTION"</span>) <span class="comment">// Tag for tracking
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"Full redemption order placed: {:?}"</span>, full_redemption);</code></pre></div>
+<h4 id="3-order-management-and-tracking"><a class="doc-anchor" href="#3-order-management-and-tracking">§</a>3. Order Management and Tracking</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get all MF orders
+</span><span class="kw">let </span>all_orders = client.mf_orders(<span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"All MF orders: {:?}"</span>, all_orders);
+
+<span class="comment">// Get specific order details
+</span><span class="kw">let </span>order_details = client.mf_orders(<span class="prelude-val">Some</span>(<span class="string">"MF_ORDER_ID"</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Order details: {:?}"</span>, order_details);
+
+<span class="comment">// Cancel a pending order
+</span><span class="kw">let </span>cancellation = client.cancel_mf_order(<span class="string">"MF_ORDER_ID"</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Order cancelled: {:?}"</span>, cancellation);</code></pre></div>
+<h4 id="4-sip-systematic-investment-plan-management"><a class="doc-anchor" href="#4-sip-systematic-investment-plan-management">§</a>4. SIP (Systematic Investment Plan) Management</h4><h5 id="setting-up-sips"><a class="doc-anchor" href="#setting-up-sips">§</a>Setting Up SIPs</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Create a monthly SIP
+</span><span class="kw">let </span>sip_order = client.place_mf_sip(
+    <span class="string">"INF090I01239"</span>,     <span class="comment">// Fund ISIN
+    </span><span class="string">"5000"</span>,             <span class="comment">// Monthly amount
+    </span><span class="string">"12"</span>,               <span class="comment">// Number of installments
+    </span><span class="string">"monthly"</span>,          <span class="comment">// Frequency
+    </span><span class="prelude-val">None</span>,               <span class="comment">// Initial amount (optional)
+    </span><span class="prelude-val">None</span>,               <span class="comment">// Instalment day
+    </span><span class="prelude-val">None                </span><span class="comment">// Tag (optional)
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"SIP created: {:?}"</span>, sip_order);
+
+<span class="comment">// Create a weekly SIP with initial investment
+</span><span class="kw">let </span>weekly_sip = client.place_mf_sip(
+    <span class="string">"INF090I01247"</span>,     <span class="comment">// Different fund ISIN
+    </span><span class="string">"1000"</span>,             <span class="comment">// Weekly amount
+    </span><span class="string">"52"</span>,               <span class="comment">// 52 weeks = 1 year
+    </span><span class="string">"weekly"</span>,           <span class="comment">// Frequency
+    </span><span class="prelude-val">Some</span>(<span class="string">"10000"</span>),      <span class="comment">// Initial lump sum investment
+    </span><span class="prelude-val">Some</span>(<span class="string">"15"</span>),         <span class="comment">// Day of the month/week
+    </span><span class="prelude-val">Some</span>(<span class="string">"WEEKLY_SIP"</span>)  <span class="comment">// Tag for tracking
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"Weekly SIP with initial investment created: {:?}"</span>, weekly_sip);</code></pre></div>
+<h5 id="managing-existing-sips"><a class="doc-anchor" href="#managing-existing-sips">§</a>Managing Existing SIPs</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get all SIPs
+</span><span class="kw">let </span>all_sips = client.mf_sips(<span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"All SIPs: {:?}"</span>, all_sips);
+
+<span class="comment">// Get specific SIP details
+</span><span class="kw">let </span>sip_details = client.mf_sips(<span class="prelude-val">Some</span>(<span class="string">"SIP_ID"</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"SIP details: {:?}"</span>, sip_details);
+
+<span class="comment">// Modify a SIP (change amount or frequency)
+</span><span class="kw">let </span>modified_sip = client.modify_mf_sip(
+    <span class="string">"SIP_ID"</span>,
+    <span class="string">"7500"</span>,             <span class="comment">// New amount (increased from 5000)
+    </span><span class="string">"ACTIVE"</span>,           <span class="comment">// Status
+    </span><span class="string">"12"</span>,               <span class="comment">// Installments
+    </span><span class="string">"monthly"</span>,          <span class="comment">// Frequency
+    </span><span class="prelude-val">None                </span><span class="comment">// Instalment day (keep unchanged)
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"SIP modified: {:?}"</span>, modified_sip);
+
+<span class="comment">// Pause a SIP
+</span><span class="kw">let </span>paused_sip = client.modify_mf_sip(
+    <span class="string">"SIP_ID"</span>,
+    <span class="string">"5000"</span>,             <span class="comment">// Amount (keep current)
+    </span><span class="string">"PAUSED"</span>,           <span class="comment">// Pause the SIP
+    </span><span class="string">"12"</span>,               <span class="comment">// Installments
+    </span><span class="string">"monthly"</span>,          <span class="comment">// Frequency
+    </span><span class="prelude-val">None                </span><span class="comment">// Instalment day (keep unchanged)
+</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"SIP paused: {:?}"</span>, paused_sip);
+
+<span class="comment">// Cancel a SIP permanently
+</span><span class="kw">let </span>cancelled_sip = client.cancel_mf_sip(<span class="string">"SIP_ID"</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"SIP cancelled: {:?}"</span>, cancelled_sip);</code></pre></div>
+<h4 id="5-portfolio-holdings-and-performance-analysis"><a class="doc-anchor" href="#5-portfolio-holdings-and-performance-analysis">§</a>5. Portfolio Holdings and Performance Analysis</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get all mutual fund holdings
+</span><span class="kw">let </span>holdings = client.mf_holdings().<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"MF Holdings: {:?}"</span>, holdings);
+
+<span class="comment">// Example: Calculate portfolio metrics
+</span><span class="kw">if let </span><span class="prelude-val">Some</span>(holdings_array) = holdings[<span class="string">"data"</span>].as_array() {
+    <span class="kw">let </span><span class="kw-2">mut </span>total_investment = <span class="number">0.0</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>total_current_value = <span class="number">0.0</span>;
+     
+    <span class="kw">for </span>holding <span class="kw">in </span>holdings_array {
+        <span class="kw">if let </span>(<span class="prelude-val">Some</span>(avg_price), <span class="prelude-val">Some</span>(quantity), <span class="prelude-val">Some</span>(last_price)) = (
+            holding[<span class="string">"average_price"</span>].as_f64(),
+            holding[<span class="string">"quantity"</span>].as_f64(),
+            holding[<span class="string">"last_price"</span>].as_f64()
+        ) {
+            <span class="kw">let </span>investment = avg_price * quantity;
+            <span class="kw">let </span>current_value = last_price * quantity;
+             
+            total_investment += investment;
+            total_current_value += current_value;
+             
+            <span class="kw">let </span>pnl = current_value - investment;
+            <span class="kw">let </span>pnl_percent = (pnl / investment) * <span class="number">100.0</span>;
+             
+            <span class="macro">println!</span>(<span class="string">"Fund: {} | Investment: ₹{:.2} | Current: ₹{:.2} | P&amp;L: ₹{:.2} ({:.2}%)"</span>,
+                holding[<span class="string">"tradingsymbol"</span>].as_str().unwrap_or(<span class="string">"Unknown"</span>),
+                investment, current_value, pnl, pnl_percent
+            );
+        }
+    }
+     
+    <span class="kw">let </span>total_pnl = total_current_value - total_investment;
+    <span class="kw">let </span>total_pnl_percent = (total_pnl / total_investment) * <span class="number">100.0</span>;
+     
+    <span class="macro">println!</span>(<span class="string">"\n=== Portfolio Summary ==="</span>);
+    <span class="macro">println!</span>(<span class="string">"Total Investment: ₹{:.2}"</span>, total_investment);
+    <span class="macro">println!</span>(<span class="string">"Current Value: ₹{:.2}"</span>, total_current_value);
+    <span class="macro">println!</span>(<span class="string">"Total P&amp;L: ₹{:.2} ({:.2}%)"</span>, total_pnl, total_pnl_percent);
+}</code></pre></div>
+<h3 id="advanced-usage-with-typed-apis"><a class="doc-anchor" href="#advanced-usage-with-typed-apis">§</a>Advanced Usage with Typed APIs</h3>
+<p>For better type safety and IDE support, use the typed API methods:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+<span class="kw">use </span>kiteconnect_async_wasm::models::mutual_funds::MFOrderParams;
+<span class="kw">use </span>kiteconnect_async_wasm::models::common::TransactionType;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Using typed APIs for better error handling and type safety
+</span><span class="kw">let </span>mf_orders = client.mf_orders_typed(<span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Total MF orders: {}"</span>, mf_orders.len());
+
+<span class="kw">let </span>mf_holdings = client.mf_holdings_typed().<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Total MF holdings: {}"</span>, mf_holdings.len());
+
+<span class="kw">let </span>sips = client.mf_sips_typed(<span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Active SIPs: {}"</span>, sips.len());
+
+<span class="comment">// Type-safe order placement
+</span><span class="kw">let </span>order_params = MFOrderParams {
+    trading_symbol: <span class="string">"INF090I01239"</span>.to_string(),
+    transaction_type: TransactionType::BUY,
+    amount: <span class="prelude-val">Some</span>(<span class="number">5000.0</span>),
+    quantity: <span class="prelude-val">None</span>,
+    tag: <span class="prelude-val">Some</span>(<span class="string">"MONTHLY_INVESTMENT"</span>.to_string()),
+};
+
+<span class="kw">let </span>order_response = client.place_mf_order_typed(<span class="kw-2">&amp;</span>order_params).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Order placed with ID: {}"</span>, order_response.order_id);</code></pre></div>
+<h3 id="investment-strategies-and-best-practices"><a class="doc-anchor" href="#investment-strategies-and-best-practices">§</a>Investment Strategies and Best Practices</h3><h4 id="1-diversification-strategy"><a class="doc-anchor" href="#1-diversification-strategy">§</a>1. Diversification Strategy</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Diversified portfolio approach
+</span><span class="kw">let </span>funds = <span class="macro">vec!</span>[
+    (<span class="string">"INF090I01239"</span>, <span class="string">"3000"</span>, <span class="string">"Large Cap"</span>),      <span class="comment">// 30% - Large cap stability
+    </span>(<span class="string">"INF090I01247"</span>, <span class="string">"2000"</span>, <span class="string">"Mid Cap"</span>),        <span class="comment">// 20% - Mid cap growth
+    </span>(<span class="string">"INF090I01255"</span>, <span class="string">"1500"</span>, <span class="string">"Small Cap"</span>),      <span class="comment">// 15% - Small cap high growth
+    </span>(<span class="string">"INF090I01263"</span>, <span class="string">"2000"</span>, <span class="string">"Debt Fund"</span>),      <span class="comment">// 20% - Debt for stability
+    </span>(<span class="string">"INF090I01271"</span>, <span class="string">"1500"</span>, <span class="string">"International"</span>),  <span class="comment">// 15% - International exposure
+</span>];
+
+<span class="kw">for </span>(isin, amount, category) <span class="kw">in </span>funds {
+    <span class="kw">match </span>client.place_mf_order(isin, <span class="string">"BUY"</span>, <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(amount), <span class="prelude-val">Some</span>(category)).<span class="kw">await </span>{
+        <span class="prelude-val">Ok</span>(order) =&gt; <span class="macro">println!</span>(<span class="string">"✅ {} investment of ₹{} placed"</span>, category, amount),
+        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"❌ Failed to place {} investment: {}"</span>, category, e),
+    }
+     
+    <span class="comment">// Add delay to respect rate limits
+    </span>tokio::time::sleep(std::time::Duration::from_millis(<span class="number">500</span>)).<span class="kw">await</span>;
+}</code></pre></div>
+<h4 id="2-sip-automation-strategy"><a class="doc-anchor" href="#2-sip-automation-strategy">§</a>2. SIP Automation Strategy</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Automated SIP setup for long-term wealth building
+</span><span class="kw">let </span>sip_strategy = <span class="macro">vec!</span>[
+    (<span class="string">"INF090I01239"</span>, <span class="string">"2000"</span>, <span class="string">"EQUITY_GROWTH"</span>),   <span class="comment">// Equity for growth
+    </span>(<span class="string">"INF090I01247"</span>, <span class="string">"1000"</span>, <span class="string">"DEBT_STABILITY"</span>),  <span class="comment">// Debt for stability
+    </span>(<span class="string">"INF090I01255"</span>, <span class="string">"500"</span>, <span class="string">"INTERNATIONAL"</span>),    <span class="comment">// International diversification
+</span>];
+
+<span class="kw">for </span>(isin, monthly_amount, tag) <span class="kw">in </span>sip_strategy {
+    <span class="kw">match </span>client.place_mf_sip(
+        isin,
+        monthly_amount,
+        <span class="string">"60"</span>,            <span class="comment">// 5 years (60 months)
+        </span><span class="string">"monthly"</span>,
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,            <span class="comment">// Instalment day
+        </span><span class="prelude-val">Some</span>(tag)
+    ).<span class="kw">await </span>{
+        <span class="prelude-val">Ok</span>(sip) =&gt; <span class="macro">println!</span>(<span class="string">"✅ SIP of ₹{}/month set up for {}"</span>, monthly_amount, tag),
+        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"❌ Failed to set up SIP: {}"</span>, e),
+    }
+     
+    tokio::time::sleep(std::time::Duration::from_millis(<span class="number">500</span>)).<span class="kw">await</span>;
+}</code></pre></div>
+<h4 id="3-portfolio-rebalancing"><a class="doc-anchor" href="#3-portfolio-rebalancing">§</a>3. Portfolio Rebalancing</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Periodic portfolio rebalancing
+</span><span class="kw">async fn </span>rebalance_portfolio(client: <span class="kw-2">&amp;</span>KiteConnect) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+    <span class="kw">let </span>holdings = client.mf_holdings().<span class="kw">await</span><span class="question-mark">?</span>;
+     
+    <span class="comment">// Calculate current allocation percentages
+    // Identify over/under allocated categories
+    // Place buy/sell orders to rebalance
+     
+    </span><span class="macro">println!</span>(<span class="string">"Portfolio rebalancing completed"</span>);
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="comment">// Run rebalancing monthly
+</span>rebalance_portfolio(<span class="kw-2">&amp;</span>client).<span class="kw">await</span><span class="question-mark">?</span>;</code></pre></div>
+<h3 id="error-handling-best-practices"><a class="doc-anchor" href="#error-handling-best-practices">§</a>Error Handling Best Practices</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+<span class="kw">use </span>kiteconnect_async_wasm::models::common::KiteError;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Comprehensive error handling for MF operations
+</span><span class="kw">match </span>client.place_mf_order(<span class="string">"INF090I01239"</span>, <span class="string">"BUY"</span>, <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="string">"5000"</span>), <span class="prelude-val">None</span>).<span class="kw">await </span>{
+    <span class="prelude-val">Ok</span>(order) =&gt; {
+        <span class="macro">println!</span>(<span class="string">"✅ Order placed successfully: {:?}"</span>, order);
+    },
+    <span class="prelude-val">Err</span>(e) =&gt; {
+        <span class="comment">// Handle specific error types
+        </span><span class="macro">eprintln!</span>(<span class="string">"❌ Order placement failed: {}"</span>, e);
+         
+        <span class="comment">// Common error scenarios:
+        // - Insufficient balance
+        // - Invalid ISIN
+        // - Market closed
+        // - Minimum investment amount not met
+        // - Daily investment limit exceeded
+        // Implement retry logic or alternative actions
+    </span>}
+}</code></pre></div>
+<h3 id="performance-monitoring-and-analytics"><a class="doc-anchor" href="#performance-monitoring-and-analytics">§</a>Performance Monitoring and Analytics</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+<span class="kw">use </span>std::time::Duration;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Monthly performance analysis
+</span><span class="kw">async fn </span>analyze_performance(client: <span class="kw-2">&amp;</span>KiteConnect) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+    <span class="kw">let </span>holdings = client.mf_holdings().<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>orders = client.mf_orders(<span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+     
+    <span class="comment">// Calculate returns, volatility, and risk metrics
+    // Generate performance reports
+    // Send alerts for significant changes
+     
+    </span><span class="macro">println!</span>(<span class="string">"Performance analysis completed"</span>);
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="comment">// Automated monitoring loop
+</span><span class="kw">loop </span>{
+    analyze_performance(<span class="kw-2">&amp;</span>client).<span class="kw">await</span><span class="question-mark">?</span>;
+    tokio::time::sleep(Duration::from_secs(<span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>)).<span class="kw">await</span>; <span class="comment">// Daily analysis
+</span>}</code></pre></div>
+<h3 id="rate-limiting-and-api-compliance"><a class="doc-anchor" href="#rate-limiting-and-api-compliance">§</a>Rate Limiting and API Compliance</h3>
+<p>Mutual fund operations are subject to specific rate limits:</p>
+<ul>
+<li><strong>Order operations</strong>: 10 requests per second (standard category)</li>
+<li><strong>Data retrieval</strong>: Built-in rate limiting with automatic retry</li>
+<li><strong>Best practices</strong>: Batch operations and implement exponential backoff</li>
+</ul>
+<p>The module automatically handles rate limiting, but for high-frequency operations,
+implement additional delay between requests to ensure compliance.</p>
+<h3 id="platform-compatibility"><a class="doc-anchor" href="#platform-compatibility">§</a>Platform Compatibility</h3>
+<p>This mutual funds module provides identical functionality across all platforms:</p>
+<ul>
+<li><strong>Native (Desktop/Server)</strong>: Full performance with local caching</li>
+<li><strong>WASM (Browser)</strong>: Complete functionality in web applications</li>
+<li><strong>Mobile</strong>: Optimized for mobile trading applications</li>
+</ul>
+<p>All APIs maintain consistent behavior and error handling across platforms.</p>
+</div></details></section></div></main></body></html>

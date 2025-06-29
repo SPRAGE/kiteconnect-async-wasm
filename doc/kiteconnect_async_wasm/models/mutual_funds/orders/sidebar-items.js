@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MFOrderStatus"],"struct":["MFOrder","MFOrderParams","MFOrderResponse","MFOrders"]};

@@ -1,0 +1,1 @@
+searchState.loadedDescShard("comprehensive_example", 0, "Comprehensive KiteConnect API Example\nGet API credentials from environment variables")

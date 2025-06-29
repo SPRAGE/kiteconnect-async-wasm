@@ -269,7 +269,7 @@ use crate::connect::utils::parse_csv_with_core;
 use crate::connect::KiteConnect;
 
 // Import typed models for dual API support
-use crate::models::common::KiteResult;
+use crate::models::common::{KiteResult, KiteError};
 use crate::models::market_data::{HistoricalData, HistoricalDataRequest, HistoricalMetadata, Quote, LTP, OHLC};
 
 impl KiteConnect {
@@ -948,7 +948,30 @@ impl KiteConnect {
 
         // Extract the data field from response
         let data = json_response["data"].clone();
-        self.parse_response(data)
+        
+        // Parse the candles array directly
+        let candles: Vec<crate::models::market_data::Candle> = if data["candles"].is_array() {
+            // If data has a "candles" field
+            serde_json::from_value(data["candles"].clone()).map_err(KiteError::Json)?
+        } else if data.is_array() {
+            // If data is directly an array of candles
+            serde_json::from_value(data).map_err(KiteError::Json)?
+        } else {
+            return Err(KiteError::general("Invalid historical data format".to_string()));
+        };
+
+        // Create metadata from request parameters
+        let metadata = crate::models::market_data::HistoricalMetadata {
+            instrument_token: request.instrument_token,
+            symbol: format!("Token-{}", request.instrument_token), // We don't have the actual symbol
+            interval: request.interval,
+            count: candles.len(),
+        };
+
+        Ok(crate::models::market_data::HistoricalData {
+            candles,
+            metadata,
+        })
     }
 
     /// Retrieve historical data with automatic chunking for large date ranges

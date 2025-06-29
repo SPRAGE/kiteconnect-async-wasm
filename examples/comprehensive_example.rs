@@ -4,12 +4,23 @@
 //! authentication, portfolio management, and market data access.
 
 use kiteconnect_async_wasm::connect::KiteConnect;
+use std::env;
 use std::error::Error;
+
+/// Get API credentials from environment variables
+fn get_credentials() -> Result<(String, String), Box<dyn Error>> {
+    let api_key =
+        env::var("KITE_API_KEY").map_err(|_| "KITE_API_KEY environment variable not set")?;
+    let api_secret =
+        env::var("KITE_API_SECRET").map_err(|_| "KITE_API_SECRET environment variable not set")?;
+    Ok((api_key, api_secret))
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the KiteConnect client
-    let mut client = KiteConnect::new("your_api_key", "");
+    let (api_key, _api_secret) = get_credentials()?;
+    let mut client = KiteConnect::new(&api_key, "");
 
     // Step 1: Authentication Flow
     println!("=== Authentication ===");

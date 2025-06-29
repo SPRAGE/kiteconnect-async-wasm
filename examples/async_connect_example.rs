@@ -3,6 +3,7 @@
 use anyhow::{anyhow, Context, Result};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
+use std::env;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -19,6 +20,16 @@ const URL: &str = "https://api.kite.trade";
 
 #[cfg(test)]
 const URL: &str = "http://localhost:1234"; // Mock server URL
+
+/// Get API credentials from environment variables
+#[allow(dead_code)]
+fn get_credentials() -> Result<(String, String)> {
+    let api_key = env::var("KITE_API_KEY")
+        .map_err(|_| anyhow!("KITE_API_KEY environment variable not set"))?;
+    let api_secret = env::var("KITE_API_SECRET")
+        .map_err(|_| anyhow!("KITE_API_SECRET environment variable not set"))?;
+    Ok((api_key, api_secret))
+}
 
 #[async_trait::async_trait]
 trait RequestHandler {
@@ -286,10 +297,12 @@ impl RequestHandler for KiteConnect {
 // Usage example for both native and WASM
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn example_usage() -> Result<()> {
-    let mut kite = KiteConnect::new("your_api_key", "");
+    let (api_key, _api_secret) = get_credentials()?;
+    let mut kite = KiteConnect::new(&api_key, "");
 
     // Generate session
-    let session = kite.generate_session("request_token", "api_secret").await?;
+    let (_api_key, api_secret) = get_credentials()?;
+    let session = kite.generate_session("request_token", &api_secret).await?;
     println!("Session: {:?}", session);
 
     // Get holdings
@@ -326,7 +339,13 @@ pub async fn example_usage_wasm() -> Result<()> {
     use wasm_bindgen_futures::spawn_local;
 
     spawn_local(async {
-        let mut kite = KiteConnect::new("your_api_key", "");
+        // For WASM, you might need to get credentials differently
+        // or use hardcoded values for demo purposes
+        let (api_key, _api_secret) = match get_credentials() {
+            Ok(creds) => creds,
+            Err(_) => ("demo_api_key".to_string(), "demo_secret".to_string()),
+        };
+        let mut kite = KiteConnect::new(&api_key, "");
 
         match kite.holdings().await {
             Ok(holdings) => {
@@ -344,10 +363,12 @@ pub async fn example_usage_wasm() -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Example usage for native environment
-    let mut kite = KiteConnect::new("your_api_key", "your_access_token");
+    let (api_key, api_secret) = get_credentials()?;
+    let access_token = env::var("KITE_ACCESS_TOKEN").unwrap_or_default();
+    let mut kite = KiteConnect::new(&api_key, &access_token);
 
     // Generate session
-    match kite.generate_session("request_token", "api_secret").await {
+    match kite.generate_session("request_token", &api_secret).await {
         Ok(session) => println!("Session generated: {:?}", session),
         Err(e) => println!("Error generating session: {:?}", e),
     }

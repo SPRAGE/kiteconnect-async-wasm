@@ -1,0 +1,1 @@
+searchState.loadedDescShard("candle_deserialization_test", 0, "Test for the Candle custom deserializer to handle …")

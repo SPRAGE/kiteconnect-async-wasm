@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["HttpMethod","KiteEndpoint","RateLimitCategory"],"struct":["Endpoint"]};

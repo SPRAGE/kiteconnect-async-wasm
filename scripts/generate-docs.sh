@@ -20,7 +20,7 @@ cargo doc \
     --all-features
 
 # Check if documentation was generated successfully in target/doc
-if [ -f "target/doc/kiteconnect/index.html" ]; then
+if [ -f "target/doc/kiteconnect_async_wasm/index.html" ]; then
     echo "📁 Copying documentation to root doc/ folder..."
     # Create doc directory if it doesn't exist
     mkdir -p doc
@@ -38,16 +38,16 @@ This documentation provides comprehensive information about the KiteConnect Rust
 
 ## Navigation
 
-- **[Main Library Documentation](kiteconnect/index.html)** - Core library documentation
-- **[API Reference](kiteconnect/connect/index.html)** - Detailed API methods
-- **[Source Code](src/kiteconnect/)** - Browse source code
+- **[Main Library Documentation](kiteconnect_async_wasm/index.html)** - Core library documentation
+- **[API Reference](kiteconnect_async_wasm/connect/index.html)** - Detailed API methods
+- **[Source Code](src/kiteconnect_async_wasm/)** - Browse source code
 
 ## Quick Links
 
 ### Getting Started
-- [Installation](kiteconnect/index.html#quick-start)
-- [Authentication Flow](kiteconnect/connect/index.html#authentication-flow)
-- [Basic Usage Examples](kiteconnect/index.html#basic-usage)
+- [Installation](kiteconnect_async_wasm/index.html#quick-start)
+- [Authentication Flow](kiteconnect_async_wasm/connect/index.html#authentication-flow)
+- [Basic Usage Examples](kiteconnect_async_wasm/index.html#basic-usage)
 
 ### API Categories
 - **Portfolio**: Holdings, Positions, Margins
@@ -56,9 +56,9 @@ This documentation provides comprehensive information about the KiteConnect Rust
 - **Mutual Funds**: MF orders and instruments
 
 ### Examples
-- [Basic Example](kiteconnect/index.html#basic-usage)
-- [Error Handling](kiteconnect/index.html#error-handling)
-- [Concurrent Operations](kiteconnect/index.html#thread-safety)
+- [Basic Example](kiteconnect_async_wasm/index.html#basic-usage)
+- [Error Handling](kiteconnect_async_wasm/index.html#error-handling)
+- [Concurrent Operations](kiteconnect_async_wasm/index.html#thread-safety)
 
 ## Features
 
@@ -125,14 +125,14 @@ let (holdings, positions) = tokio::try_join!(
 EOF
     
     echo "✅ Documentation generated successfully!"
-    echo "📖 Main documentation: doc/kiteconnect/index.html"
+    echo "📖 Main documentation: doc/kiteconnect_async_wasm/index.html"
     echo "📚 Quick reference: doc/QUICKREF.md"
     echo "📋 Documentation guide: doc/README.md"
-    echo "🌐 Open in browser: file://$(pwd)/doc/kiteconnect/index.html"
+    echo "🌐 Open in browser: file://$(pwd)/doc/kiteconnect_async_wasm/index.html"
     echo ""
     echo "📊 Documentation statistics:"
     echo "   - Total files: $(find doc -name "*.html" | wc -l)"
-    echo "   - Main modules: $(find doc/kiteconnect -maxdepth 1 -name "*.html" | wc -l)"
+    echo "   - Main modules: $(find doc/kiteconnect_async_wasm -maxdepth 1 -name "*.html" | wc -l)"
     echo "   - Source files: $(find doc/src -name "*.html" | wc -l)"
 else
     echo "❌ Documentation generation failed!"

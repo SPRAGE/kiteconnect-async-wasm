@@ -9,11 +9,22 @@ use chrono::NaiveDateTime;
 use kiteconnect_async_wasm::connect::KiteConnect;
 use kiteconnect_async_wasm::models::common::Interval;
 use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
+use std::env;
+
+/// Get API credentials from environment variables
+fn get_credentials() -> Result<(String, String), Box<dyn std::error::Error>> {
+    let api_key =
+        env::var("KITE_API_KEY").map_err(|_| "KITE_API_KEY environment variable not set")?;
+    let access_token = env::var("KITE_ACCESS_TOKEN")
+        .map_err(|_| "KITE_ACCESS_TOKEN environment variable not set")?;
+    Ok((api_key, access_token))
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize KiteConnect client
-    let _client = KiteConnect::new("your_api_key", "your_access_token");
+    // Initialize KiteConnect client with credentials from environment variables
+    let (api_key, access_token) = get_credentials()?;
+    let _client = KiteConnect::new(&api_key, &access_token);
 
     println!("=== Historical Data Typed API Example ===\n");
 
@@ -116,7 +127,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("To actually fetch data, you would call:");
     println!("let historical_data = client.historical_data_typed(request).await?;");
     println!("\nThis example only demonstrates the request creation.");
-    println!("For actual API calls, ensure you have valid API credentials.");
+    println!("For actual API calls, ensure you have set the environment variables:");
+    println!("  export KITE_API_KEY=your_actual_api_key");
+    println!("  export KITE_ACCESS_TOKEN=your_actual_access_token");
 
     // Uncomment the following lines to actually make API calls
     // (requires valid API credentials)
@@ -143,6 +156,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     */
-
     Ok(())
 }
