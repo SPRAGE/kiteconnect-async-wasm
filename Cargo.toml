@@ -1,6 +1,6 @@
 [package]
 name = "kiteconnect-async-wasm"
-version = "1.0.7"
+version = "1.0.8"
 authors = ["SPRAGE <shauna.pai@gmail.com>"]
 description = "Modern async Rust client for KiteConnect REST APIs with WASM support. Clean, well-documented, and focused on REST-only operations."
 license = "Unlicense"
