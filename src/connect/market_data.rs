@@ -58,8 +58,8 @@
 //! ## Available Methods
 //!
 //! ### Instruments and Market Data
-//! - [`instruments()`](KiteConnect::instruments) - Get complete instruments list (cached for performance)
-//! - [`mf_instruments()`](KiteConnect::mf_instruments) - Get mutual fund instruments
+//! - [`instruments()`](KiteConnect::instruments) / [`instruments_typed()`](KiteConnect::instruments_typed) - Get complete instruments list (cached for performance)
+//! - [`mf_instruments()`](KiteConnect::mf_instruments) / [`mf_instruments_typed()`](KiteConnect::mf_instruments_typed) - Get mutual fund instruments
 //! - [`quote()`](KiteConnect::quote) / [`quote_typed()`](KiteConnect::quote_typed) - Real-time quotes
 //! - [`ohlc()`](KiteConnect::ohlc) / [`ohlc_typed()`](KiteConnect::ohlc_typed) - OHLC data
 //! - [`ltp()`](KiteConnect::ltp) / [`ltp_typed()`](KiteConnect::ltp_typed) - Last traded price
@@ -165,21 +165,27 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = KiteConnect::new("api_key", "access_token");
 //!
-//! // Get all instruments (cached automatically)
-//! let instruments = client.instruments(None).await?;
+//! // Get all instruments with type safety (recommended)
+//! let instruments = client.instruments_typed(None).await?;
+//! println!("Total instruments available: {}", instruments.len());
 //!
-//! // On WASM, this returns structured JSON parsed from CSV
-//! // On native, this returns structured JSON from server-side parsing
-//! if let Some(instruments_array) = instruments.as_array() {
-//!     println!("Total instruments available: {}", instruments_array.len());
-//!     
-//!     // Find specific instruments
-//!     let reliance_instruments: Vec<_> = instruments_array
-//!         .iter()
-//!         .filter(|inst| inst["name"].as_str().unwrap_or("").contains("RELIANCE"))
-//!         .collect();
-//!     
-//!     println!("Found {} RELIANCE instruments", reliance_instruments.len());
+//! // Filter and analyze with helper methods
+//! let reliance_options: Vec<_> = instruments
+//!     .iter()
+//!     .filter(|inst| inst.name.contains("RELIANCE") && inst.is_option())
+//!     .collect();
+//!
+//! for option in reliance_options.iter().take(5) {
+//!     println!("Option: {} | Strike: {} | Days to expiry: {:?}",
+//!         option.trading_symbol,
+//!         option.strike,
+//!         option.days_to_expiry());
+//! }
+//!
+//! // Legacy JSON API still available for backward compatibility
+//! let instruments_json = client.instruments(None).await?;
+//! if let Some(instruments_array) = instruments_json.as_array() {
+//!     println!("Total instruments (JSON): {}", instruments_array.len());
 //! }
 //! # Ok(())
 //! # }
@@ -269,8 +275,11 @@ use crate::connect::utils::parse_csv_with_core;
 use crate::connect::KiteConnect;
 
 // Import typed models for dual API support
-use crate::models::common::{KiteResult, KiteError};
-use crate::models::market_data::{HistoricalData, HistoricalDataRequest, HistoricalMetadata, Quote, LTP, OHLC};
+use crate::models::common::{KiteError, KiteResult};
+use crate::models::market_data::{
+    HistoricalData, HistoricalDataRequest, HistoricalMetadata, Quote, LTP, OHLC,
+};
+use crate::models::mutual_funds::MFInstrument;
 
 impl KiteConnect {
     // === LEGACY API METHODS (JSON responses) ===
@@ -914,7 +923,9 @@ impl KiteConnect {
     ) -> KiteResult<HistoricalData> {
         // Validate date range against API limits
         if let Err(validation_error) = request.validate_date_range() {
-            return Err(crate::models::common::KiteError::input_exception(validation_error));
+            return Err(crate::models::common::KiteError::input_exception(
+                validation_error,
+            ));
         }
 
         let mut params = Vec::new();
@@ -948,7 +959,7 @@ impl KiteConnect {
 
         // Extract the data field from response
         let data = json_response["data"].clone();
-        
+
         // Parse the candles array directly
         let candles: Vec<crate::models::market_data::Candle> = if data["candles"].is_array() {
             // If data has a "candles" field
@@ -957,7 +968,9 @@ impl KiteConnect {
             // If data is directly an array of candles
             serde_json::from_value(data).map_err(KiteError::Json)?
         } else {
-            return Err(KiteError::general("Invalid historical data format".to_string()));
+            return Err(KiteError::general(
+                "Invalid historical data format".to_string(),
+            ));
         };
 
         // Create metadata from request parameters
@@ -968,10 +981,210 @@ impl KiteConnect {
             count: candles.len(),
         };
 
-        Ok(crate::models::market_data::HistoricalData {
-            candles,
-            metadata,
-        })
+        Ok(crate::models::market_data::HistoricalData { candles, metadata })
+    }
+
+    /// Get instruments list with typed response
+    ///
+    /// Returns strongly typed instrument data instead of JsonValue.
+    /// This provides compile-time type safety and better IDE support.
+    ///
+    /// # Arguments
+    ///
+    /// * `exchange` - Optional exchange filter ("NSE", "BSE", etc.)
+    ///
+    /// # Returns
+    ///
+    /// A `KiteResult<Vec<Instrument>>` containing typed instrument data
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    ///
+    /// // Get all instruments with type safety
+    /// let instruments = client.instruments_typed(None).await?;
+    /// println!("Total instruments: {}", instruments.len());
+    ///
+    /// // Filter and analyze instruments
+    /// let reliance_instruments: Vec<_> = instruments
+    ///     .iter()
+    ///     .filter(|inst| inst.name.contains("RELIANCE"))
+    ///     .collect();
+    ///
+    /// for instrument in reliance_instruments {
+    ///     println!("Symbol: {}, Type: {:?}, Strike: {}",
+    ///         instrument.trading_symbol,
+    ///         instrument.instrument_type,
+    ///         instrument.strike);
+    ///     
+    ///     if instrument.is_option() {
+    ///         println!("  Days to expiry: {:?}", instrument.days_to_expiry());
+    ///     }
+    /// }
+    ///
+    /// // Get NSE instruments only
+    /// let nse_instruments = client.instruments_typed(Some("NSE")).await?;
+    /// println!("NSE instruments: {}", nse_instruments.len());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Features
+    ///
+    /// - **Type Safety**: Compile-time validation and IDE autocomplete
+    /// - **Helper Methods**: Built-in methods like `is_equity()`, `is_option()`, `days_to_expiry()`
+    /// - **Caching**: Automatic caching for performance (when enabled)
+    /// - **Cross-Platform**: Works on both native and WASM platforms
+    ///
+    /// # Performance Notes
+    ///
+    /// - Results are automatically cached when `exchange` is `None`
+    /// - Cache duration is 1 hour by default
+    /// - Exchange-specific queries are not cached
+    /// - Large instrument lists are processed efficiently
+    pub async fn instruments_typed(
+        &self,
+        exchange: Option<&str>,
+    ) -> KiteResult<Vec<crate::models::market_data::Instrument>> {
+        // Get the JSON response using existing method
+        let json_response = self
+            .instruments(exchange)
+            .await
+            .map_err(|e| KiteError::general(format!("Failed to get instruments: {}", e)))?;
+
+        // Parse the JSON array into typed instruments
+        if let Some(instruments_array) = json_response.as_array() {
+            let mut instruments = Vec::new();
+
+            for instrument_json in instruments_array {
+                // Convert JSON object to Instrument struct
+                match serde_json::from_value::<crate::models::market_data::Instrument>(
+                    instrument_json.clone(),
+                ) {
+                    Ok(instrument) => instruments.push(instrument),
+                    Err(e) => {
+                        // Log the error but continue processing other instruments
+                        #[cfg(feature = "debug")]
+                        log::warn!(
+                            "Failed to parse instrument: {:?} - Error: {}",
+                            instrument_json,
+                            e
+                        );
+
+                        // For now, continue with other instruments rather than failing completely
+                        continue;
+                    }
+                }
+            }
+
+            Ok(instruments)
+        } else {
+            Err(KiteError::general(
+                "Invalid instruments response format".to_string(),
+            ))
+        }
+    }
+
+    /// Get mutual fund instruments with typed response
+    ///
+    /// Returns strongly typed mutual fund instrument data instead of JsonValue.
+    /// This provides compile-time type safety and helper methods for MF analysis.
+    ///
+    /// # Returns
+    ///
+    /// A `KiteResult<Vec<MFInstrument>>` containing typed MF instrument data
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use kiteconnect_async_wasm::connect::KiteConnect;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = KiteConnect::new("api_key", "access_token");
+    ///
+    /// // Get all MF instruments with type safety
+    /// let mf_instruments = client.mf_instruments_typed().await?;
+    /// println!("Total MF instruments: {}", mf_instruments.len());
+    ///
+    /// // Filter by fund type and AMC
+    /// let equity_funds: Vec<_> = mf_instruments
+    ///     .iter()
+    ///     .filter(|fund| fund.is_equity_fund())
+    ///     .collect();
+    ///
+    /// println!("Equity funds available: {}", equity_funds.len());
+    ///
+    /// // Find SIP eligible funds
+    /// let sip_funds: Vec<_> = mf_instruments
+    ///     .iter()
+    ///     .filter(|fund| fund.allows_sip())
+    ///     .collect();
+    ///
+    /// for fund in sip_funds.iter().take(5) {
+    ///     println!("Fund: {}", fund.name);
+    ///     println!("  AMC: {}", fund.amc);
+    ///     println!("  Min SIP: ₹{:.2}", fund.minimum_additional_purchase_amount);
+    ///     println!("  Settlement: {} days", fund.settlement_days());
+    ///     println!("  Type: {} | Plan: {}", fund.fund_type, fund.plan);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Features
+    ///
+    /// - **Type Safety**: Compile-time validation and IDE autocomplete
+    /// - **Helper Methods**: Built-in methods like `is_equity_fund()`, `allows_sip()`, `settlement_days()`
+    /// - **Fund Analysis**: Easy filtering by fund type, AMC, and investment options
+    /// - **Cross-Platform**: Works on both native and WASM platforms
+    ///
+    /// # Performance Notes
+    ///
+    /// - No caching for MF instruments (data changes frequently)
+    /// - Efficient parsing of large CSV responses
+    /// - Memory usage scales with number of available funds
+    pub async fn mf_instruments_typed(&self) -> KiteResult<Vec<MFInstrument>> {
+        // Get the JSON response using existing method
+        let json_response = self
+            .mf_instruments()
+            .await
+            .map_err(|e| KiteError::general(format!("Failed to get MF instruments: {}", e)))?;
+
+        // Parse the JSON array into typed MF instruments
+        if let Some(instruments_array) = json_response.as_array() {
+            let mut instruments = Vec::new();
+
+            for instrument_json in instruments_array {
+                // Convert JSON object to MFInstrument struct
+                match serde_json::from_value::<MFInstrument>(instrument_json.clone()) {
+                    Ok(instrument) => instruments.push(instrument),
+                    Err(e) => {
+                        // Log the error but continue processing other instruments
+                        #[cfg(feature = "debug")]
+                        log::warn!(
+                            "Failed to parse MF instrument: {:?} - Error: {}",
+                            instrument_json,
+                            e
+                        );
+
+                        // For now, continue with other instruments rather than failing completely
+                        continue;
+                    }
+                }
+            }
+
+            Ok(instruments)
+        } else {
+            Err(KiteError::general(
+                "Invalid MF instruments response format".to_string(),
+            ))
+        }
     }
 
     /// Retrieve historical data with automatic chunking for large date ranges
@@ -1047,7 +1260,7 @@ impl KiteConnect {
     ) -> KiteResult<HistoricalData> {
         // Split the request into valid chunks in reverse chronological order
         let chunk_requests = request.split_into_valid_requests_reverse();
-        
+
         if chunk_requests.len() == 1 {
             // No chunking needed, use regular method
             return self.historical_data_typed(request).await;
@@ -1086,7 +1299,7 @@ impl KiteConnect {
                             chunk_request.from.format("%Y-%m-%d"),
                             chunk_request.to.format("%Y-%m-%d")
                         );
-                        
+
                         // Early termination: empty chunk means no more historical data exists
                         break;
                     }
@@ -1095,7 +1308,7 @@ impl KiteConnect {
                     let candles_count = chunk_data.candles.len();
                     all_candles.extend(chunk_data.candles);
                     _successful_chunks += 1;
-                    
+
                     #[cfg(feature = "debug")]
                     log::debug!(
                         "Chunk {}/{} completed successfully: {} candles retrieved",
@@ -1106,14 +1319,9 @@ impl KiteConnect {
                 }
                 Err(e) => {
                     failed_chunks += 1;
-                    
+
                     #[cfg(feature = "debug")]
-                    log::warn!(
-                        "Chunk {}/{} failed: {:?}",
-                        i + 1,
-                        chunk_requests.len(),
-                        e
-                    );
+                    log::warn!("Chunk {}/{} failed: {:?}", i + 1, chunk_requests.len(), e);
 
                     if !continue_on_error {
                         return Err(e);
