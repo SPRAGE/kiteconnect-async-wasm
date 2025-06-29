@@ -1,1 +1,0 @@
-searchState.loadedDescShard("simple_256265_example", 0, "Simple example for fetching historical data for instrument …\nGet API credentials from environment variables")

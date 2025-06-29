@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ConversionType"],"struct":["BulkConversionRequest","BulkConversionResponse","ConversionRequest","ConversionResponse","ConversionResult"]};

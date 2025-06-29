@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["URL"],"fn":["example_usage","get_credentials","main"],"struct":["KiteConnect"],"trait":["RequestHandler"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["SIPFrequency","SIPStatus"],"struct":["SIP","SIPModifyParams","SIPParams","SIPResponse","SIPStepUp","SIPs"]};

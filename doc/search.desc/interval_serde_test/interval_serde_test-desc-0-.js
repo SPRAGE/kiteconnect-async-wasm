@@ -1,1 +1,0 @@
-searchState.loadedDescShard("interval_serde_test", 0, "")

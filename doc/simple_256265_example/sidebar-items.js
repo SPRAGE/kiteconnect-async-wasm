@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_credentials","main","print_basic_stats"]};

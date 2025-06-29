@@ -1,1 +1,0 @@
-searchState.loadedDescShard("dual_api_example", 0, "Dual API Support Example\nGet API credentials from environment variables")

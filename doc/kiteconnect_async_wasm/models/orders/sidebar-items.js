@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["order_data","order_history","order_params"]};
