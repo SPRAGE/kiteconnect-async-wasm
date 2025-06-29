@@ -1,4 +1,4 @@
-# KiteConnect Async WASM v1.0.3
+# KiteConnect Async WASM v1.0.6
 
 > ⚠️ **IMPORTANT DISCLAIMER** ⚠️
 > 
@@ -20,20 +20,68 @@
 
 A production-ready, high-performance Rust library for KiteConnect API integration featuring both legacy and strongly-typed APIs.
 
-## 🚀 Features v1.0.3
+## 🚀 Features v1.0.6
 
+- ✅ **Robust Historical Data API** - Enhanced `Candle` deserialization with support for multiple API response formats
+- ✅ **Environment Variable Integration** - All examples use secure environment variables for API credentials  
+- ✅ **Enhanced Error Handling** - Improved handling of missing metadata and OI fields
+- ✅ **Timezone-Aware Parsing** - Support for +0530 timezone and various date formats
+- ✅ **Production-Ready Examples** - Tested examples that work with real KiteConnect API
 - ✅ **Enhanced Historical Data API** - New `HistoricalDataRequest` struct with `NaiveDateTime` precision
 - ✅ **Dual Serde Support** - Flexible Interval enum accepting both strings and integers
 - ✅ **Organized Enum System** - Modular enum structure for better maintainability
 - ✅ **Dual API Support** - Legacy JSON + new strongly-typed APIs
 - ✅ **Automatic Retry Logic** with exponential backoff
 - ✅ **Response Caching** for performance optimization
-- ✅ **Enhanced Error Handling** with detailed error types
 - ✅ **Full WASM Compatibility** for web applications  
 - ✅ **Thread-Safe Design** with connection pooling
 - ✅ **Comprehensive Documentation** with migration guide
 - ✅ **Backward Compatibility** - all existing code continues to work
 - ✅ **Professional Code Quality** - Clippy optimized and formatted
+
+## 🆕 What's New in v1.0.6
+
+### 🔧 Enhanced Historical Data Reliability
+
+The v1.0.6 release focuses on making historical data fetching **production-ready** and **robust**:
+
+```rust
+use kiteconnect_async_wasm::connect::KiteConnect;
+use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
+use kiteconnect_async_wasm::models::common::Interval;
+use chrono::NaiveDateTime;
+use std::env;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 🔒 Secure: Use environment variables
+    let api_key = env::var("KITE_API_KEY")?;
+    let access_token = env::var("KITE_ACCESS_TOKEN")?;
+    let client = KiteConnect::new(&api_key, &access_token);
+
+    // 📊 Robust: Handles various API response formats
+    let request = HistoricalDataRequest::new(
+        256265, // Instrument token
+        NaiveDateTime::parse_from_str("2024-12-20 09:00:00", "%Y-%m-%d %H:%M:%S")?,
+        NaiveDateTime::parse_from_str("2024-12-20 16:00:00", "%Y-%m-%d %H:%M:%S")?,
+        Interval::FiveMinute,
+    );
+
+    // ✅ Works reliably with real KiteConnect API
+    let data = client.historical_data_typed(request).await?;
+    println!("Fetched {} candles successfully!", data.candles.len());
+    
+    Ok(())
+}
+```
+
+**Key Improvements:**
+- ✅ **Custom Candle Deserializer** - Handles both array and object formats from KiteConnect API
+- ✅ **Metadata Synthesis** - Generates metadata when API doesn't provide it  
+- ✅ **Timezone Support** - Proper parsing of +0530 timezone and various date formats
+- ✅ **Missing Field Handling** - Graceful handling when Open Interest (OI) data is unavailable
+- ✅ **Environment Variables** - All examples use secure credential management
+- ✅ **Real API Testing** - Examples tested with actual KiteConnect API responses
 
 ## 🎯 Quick Start
 
@@ -41,10 +89,10 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 
 ```toml
 [dependencies]
-kiteconnect-async-wasm = "1.0.4"
+kiteconnect-async-wasm = "1.0.6"
 
 # For WASM targets
-# kiteconnect-async-wasm = "1.0.4", features = ["wasm"] }
+# kiteconnect-async-wasm = "1.0.6", features = ["wasm"] }
 ```
 
 ### Basic Usage (Legacy API - Backward Compatible)

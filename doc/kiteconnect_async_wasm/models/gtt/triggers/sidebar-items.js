@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["GTTTriggerType"],"struct":["GTT","GTTCondition","GTTCreateParams","GTTModifyParams","GTTOrderParams","GTTOrderResult","GTTResponse","GTTs"]};

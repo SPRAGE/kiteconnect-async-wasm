@@ -1,0 +1,1 @@
+searchState.loadedDescShard("historical_data_typed_example", 0, "Example demonstrating the usage of historical_data_typed …\nGet API credentials from environment variables")

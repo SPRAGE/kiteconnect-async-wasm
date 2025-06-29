@@ -5,13 +5,24 @@
 
 use anyhow::Result;
 use kiteconnect_async_wasm::connect::KiteConnect;
+use std::env;
+
+/// Get API credentials from environment variables
+fn get_credentials() -> Result<(String, String)> {
+    let api_key = env::var("KITE_API_KEY")
+        .map_err(|_| anyhow::anyhow!("KITE_API_KEY environment variable not set"))?;
+    let api_secret = env::var("KITE_API_SECRET")
+        .map_err(|_| anyhow::anyhow!("KITE_API_SECRET environment variable not set"))?;
+    Ok((api_key, api_secret))
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("=== KiteConnect Authentication and Token Invalidation Example ===");
 
     // Initialize client with API key (access token will be set after login)
-    let mut client = KiteConnect::new("your_api_key", "");
+    let (api_key, _api_secret) = get_credentials()?;
+    let mut client = KiteConnect::new(&api_key, "");
 
     // Step 1: Generate login URL
     let login_url = client.login_url();

@@ -1,0 +1,84 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="KiteConnect v1.0.3 Data Models"><title>kiteconnect_async_wasm::models - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="kiteconnect_async_wasm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../static.files/storage-82c7156e.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../kiteconnect_async_wasm/index.html">kiteconnect_<wbr>async_<wbr>wasm</a><span class="version">1.0.6</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module models</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#kiteconnect-v103-data-models" title="KiteConnect v1.0.3 Data Models">KiteConnect v1.0.3 Data Models</a><ul><li><a href="#model-organization" title="Model Organization">Model Organization</a></li><li><a href="#whats-new-in-v103" title="What’s New in v1.0.3">What’s New in v1.0.3</a></li><li><a href="#error-handling" title="Error Handling">Error Handling</a></li></ul></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate kiteconnect_<wbr>async_<wbr>wasm</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">kiteconnect_async_wasm</a></div><h1>Module <span>models</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/kiteconnect_async_wasm/models/mod.rs.html#1-313">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="kiteconnect-v103-data-models"><a class="doc-anchor" href="#kiteconnect-v103-data-models">§</a>KiteConnect v1.0.3 Data Models</h2>
+<p>This module provides comprehensive typed models for all KiteConnect API operations.
+The models are organized into domain-specific submodules and offer both legacy
+compatibility and enhanced v1.0.3 features.</p>
+<h3 id="model-organization"><a class="doc-anchor" href="#model-organization">§</a>Model Organization</h3>
+<ul>
+<li><strong><code>common</code></strong>: Shared types, enums, errors, and response wrappers</li>
+<li><strong><code>auth</code></strong>: Authentication, sessions, user profiles, and margins</li>
+<li><strong><code>orders</code></strong>: Order management, trades, and order-related types</li>
+<li><strong><code>portfolio</code></strong>: Holdings, positions, and portfolio conversions</li>
+<li><strong><code>market_data</code></strong>: Instruments, quotes, market depth, and historical data</li>
+<li><strong><code>mutual_funds</code></strong>: MF orders, instruments, SIPs, and holdings</li>
+<li><strong><code>gtt</code></strong>: GTT (Good Till Triggered) orders and triggers</li>
+</ul>
+<h3 id="whats-new-in-v103"><a class="doc-anchor" href="#whats-new-in-v103">§</a>What’s New in v1.0.3</h3><h4 id="enhanced-historical-data-api"><a class="doc-anchor" href="#enhanced-historical-data-api">§</a>Enhanced Historical Data API</h4>
+<ul>
+<li><strong>Structured Requests</strong>: New <code>HistoricalDataRequest</code> with builder pattern</li>
+<li><strong>Precise DateTime</strong>: <code>NaiveDateTime</code> support for hour/minute/second precision</li>
+<li><strong>Type Safety</strong>: Compile-time validation of parameters</li>
+</ul>
+<h4 id="dual-serde-support"><a class="doc-anchor" href="#dual-serde-support">§</a>Dual Serde Support</h4>
+<ul>
+<li><strong>Flexible Intervals</strong>: Accept both strings (“day”) and integers (0) for <code>Interval</code></li>
+<li><strong>Consistent Output</strong>: Always serialize as strings for API compatibility</li>
+<li><strong>Backward Compatible</strong>: Existing code continues to work</li>
+</ul>
+<h4 id="organized-enum-system"><a class="doc-anchor" href="#organized-enum-system">§</a>Organized Enum System</h4>
+<ul>
+<li><strong>Modular Structure</strong>: Enums split into logical submodules</li>
+<li><strong>Better Maintainability</strong>: Easier navigation and development</li>
+<li><strong>Full Compatibility</strong>: All imports work through re-exports</li>
+</ul>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::models::prelude::<span class="kw-2">*</span>;
+
+<span class="comment">// Current: Create typed models from JSON responses
+</span><span class="kw">let </span>json_response = <span class="string">r#"{
+    "account_id": "ABCD123",
+    "tradingsymbol": "RELIANCE",
+    "exchange": "NSE",
+    "isin": "INE002A01018",
+    "product": "CNC",
+    "instrument_token": 738561,
+    "quantity": 100,
+    "t1_quantity": 0,
+    "realised_quantity": 100,
+    "authorised_quantity": 0,
+    "opening_quantity": 100,
+    "collateral_quantity": 0,
+    "collateral_type": null,
+    "collateral_update_quantity": 0,
+    "discrepancy": false,
+    "average_price": 2400.0,
+    "last_price": 2450.0,
+    "close_price": 2445.0,
+    "price_change": 5.0,
+    "pnl": 5000.0,
+    "day_change": 5.0,
+    "day_change_percentage": 0.2,
+    "used_quantity": 0
+}"#</span>;
+<span class="kw">let </span>holding: Holding = serde_json::from_str(<span class="kw-2">&amp;</span>json_response)<span class="question-mark">?</span>;
+
+<span class="comment">// Future: Direct typed API methods (roadmap)
+// let holdings: Vec&lt;Holding&gt; = kite.holdings_typed().await?;</span></code></pre></div>
+<h3 id="error-handling"><a class="doc-anchor" href="#error-handling">§</a>Error Handling</h3>
+<p>All models include comprehensive error types with <code>KiteError</code>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::models::KiteError;
+
+<span class="comment">// Example error handling with models
+</span><span class="kw">let </span>error = KiteError::Api {
+    status: <span class="string">"400"</span>.to_string(),
+    message: <span class="string">"Invalid parameters"</span>.to_string(),
+    error_type: <span class="prelude-val">Some</span>(<span class="string">"BadRequest"</span>.to_string()),
+};
+
+<span class="kw">match </span>error {
+    KiteError::Authentication(msg) =&gt; { <span class="comment">/* handle auth error */ </span>},
+    KiteError::Api { status, message, .. } =&gt; { <span class="comment">/* handle API error */ </span>},
+    KiteError::Json(err) =&gt; { <span class="comment">/* handle JSON parsing error */ </span>},
+    <span class="kw">_ </span>=&gt; { <span class="comment">/* handle other errors */ </span>},
+}</code></pre></div>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt><code>pub use <a class="mod" href="common/index.html" title="mod kiteconnect_async_wasm::models::common">common</a>::*;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="auth/index.html" title="mod kiteconnect_async_wasm::models::auth">auth</a></dt><dd>Authentication and user-related data models.</dd><dt><a class="mod" href="common/index.html" title="mod kiteconnect_async_wasm::models::common">common</a></dt><dd>Common types and utilities shared across all KiteConnect models.</dd><dt><a class="mod" href="gtt/index.html" title="mod kiteconnect_async_wasm::models::gtt">gtt</a></dt><dd>GTT (Good Till Triggered) module for KiteConnect API v1.0.0</dd><dt><a class="mod" href="market_data/index.html" title="mod kiteconnect_async_wasm::models::market_data">market_<wbr>data</a></dt><dd>Market Data module for KiteConnect API v1.0.0</dd><dt><a class="mod" href="mutual_funds/index.html" title="mod kiteconnect_async_wasm::models::mutual_funds">mutual_<wbr>funds</a></dt><dd>Mutual Funds module for KiteConnect API v1.0.0</dd><dt><a class="mod" href="orders/index.html" title="mod kiteconnect_async_wasm::models::orders">orders</a></dt><dd>Orders module for KiteConnect API v1.0.0</dd><dt><a class="mod" href="portfolio/index.html" title="mod kiteconnect_async_wasm::models::portfolio">portfolio</a></dt><dd>Portfolio module for KiteConnect API v1.0.0</dd><dt><a class="mod" href="prelude/index.html" title="mod kiteconnect_async_wasm::models::prelude">prelude</a></dt><dd>Prelude module for convenient imports</dd></dl></section></div></main></body></html>

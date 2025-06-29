@@ -6,7 +6,23 @@
 use kiteconnect_async_wasm::connect::{
     KiteConnect, KiteConnectConfig, KiteEndpoint, RateLimitCategory,
 };
+use std::env;
 use std::time::Instant;
+
+/// Get API credentials from environment variables
+#[allow(dead_code)]
+fn get_credentials() -> Result<(String, String), Box<dyn std::error::Error>> {
+    let api_key =
+        env::var("KITE_API_KEY").map_err(|_| "KITE_API_KEY environment variable not set")?;
+    let access_token = env::var("KITE_ACCESS_TOKEN")
+        .map_err(|_| "KITE_ACCESS_TOKEN environment variable not set")?;
+    Ok((api_key, access_token))
+}
+
+/// Get demo credentials (for functions that don't need real API calls)
+fn get_demo_credentials() -> (String, String) {
+    ("demo_key".to_string(), "demo_token".to_string())
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -96,7 +112,8 @@ async fn demonstrate_rate_limiting_config() -> Result<(), Box<dyn std::error::Er
         enable_rate_limiting: true,
         ..Default::default()
     };
-    let client_with_limits = KiteConnect::new_with_config("demo_key", config_with_limits);
+    let (demo_key, _demo_token) = get_demo_credentials();
+    let client_with_limits = KiteConnect::new_with_config(&demo_key, config_with_limits);
     println!("✓ Client created with rate limiting ENABLED");
     println!(
         "  Rate limiting enabled: {}",
@@ -108,7 +125,8 @@ async fn demonstrate_rate_limiting_config() -> Result<(), Box<dyn std::error::Er
         enable_rate_limiting: false,
         ..Default::default()
     };
-    let client_no_limits = KiteConnect::new_with_config("demo_key", config_no_limits);
+    let (demo_key, _demo_token) = get_demo_credentials();
+    let client_no_limits = KiteConnect::new_with_config(&demo_key, config_no_limits);
     println!("✓ Client created with rate limiting DISABLED");
     println!(
         "  Rate limiting enabled: {}",
@@ -141,7 +159,8 @@ async fn demonstrate_rate_limiting_config() -> Result<(), Box<dyn std::error::Er
 async fn demonstrate_rate_limiting_in_action() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== 3. Rate Limiting in Action ===");
 
-    let client = KiteConnect::new("demo_key", "demo_token");
+    let (demo_key, demo_token) = get_demo_credentials();
+    let client = KiteConnect::new(&demo_key, &demo_token);
 
     println!("Testing Quote endpoint rate limiting (1 req/sec):");
 
@@ -198,7 +217,8 @@ async fn demonstrate_rate_limiting_in_action() -> Result<(), Box<dyn std::error:
 async fn demonstrate_rate_limiter_stats() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== 4. Rate Limiter Statistics ===");
 
-    let client = KiteConnect::new("demo_key", "demo_token");
+    let (demo_key, demo_token) = get_demo_credentials();
+    let client = KiteConnect::new(&demo_key, &demo_token);
 
     // Make some requests to different endpoints
     client.wait_for_request(&KiteEndpoint::Quote).await;
@@ -254,7 +274,8 @@ async fn demonstrate_rate_limiter_stats() -> Result<(), Box<dyn std::error::Erro
 /// Example of how endpoints would be used in actual API methods
 #[allow(dead_code)]
 async fn example_api_method_usage() -> Result<(), Box<dyn std::error::Error>> {
-    let _client = KiteConnect::new("api_key", "access_token");
+    let (demo_key, demo_token) = get_demo_credentials();
+    let _client = KiteConnect::new(&demo_key, &demo_token);
 
     // This is how API methods would use the new endpoint system:
     // Note: This is pseudocode as we haven't updated the actual API methods yet
@@ -308,7 +329,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limiting() {
-        let client = KiteConnect::new("test_key", "test_token");
+        let (demo_key, demo_token) = get_demo_credentials();
+        let client = KiteConnect::new(&demo_key, &demo_token);
 
         // First request should be immediate
         assert!(client.can_request_immediately(&KiteEndpoint::Quote).await);
@@ -329,7 +351,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limiter_stats() {
-        let client = KiteConnect::new("test_key", "test_token");
+        let (demo_key, demo_token) = get_demo_credentials();
+        let client = KiteConnect::new(&demo_key, &demo_token);
 
         // Make some requests
         client.wait_for_request(&KiteEndpoint::Quote).await;

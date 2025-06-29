@@ -32,8 +32,9 @@ let request = HistoricalDataRequest::new(
 */
 
 use crate::models::common::Interval;
-use chrono::{DateTime, NaiveDateTime, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 
 /// Historical data request parameters (v1.0.3 enhanced)
 ///
@@ -200,7 +201,7 @@ pub struct HistoricalDataRequest {
 /// println!("Change: ₹{:.2} ({:.2}%)", change, change_pct);
 /// # }
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Candle {
     /// Timestamp in UTC
     ///
@@ -249,6 +250,121 @@ pub struct Candle {
     /// - Increasing OI + Falling prices = Bearish sentiment
     /// - Decreasing OI = Position unwinding
     pub oi: Option<u64>,
+}
+
+impl<'de> Deserialize<'de> for Candle {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: Value = Deserialize::deserialize(deserializer)?;
+
+        // Handle array format: [date, open, high, low, close, volume] or [date, open, high, low, close, volume, oi]
+        if let Some(array) = value.as_array() {
+            if array.len() < 6 {
+                return Err(serde::de::Error::custom(format!(
+                    "Expected at least 6 elements in candle array, got {}",
+                    array.len()
+                )));
+            }
+
+            // Parse date (can be string or timestamp)
+            let date = if let Some(date_str) = array[0].as_str() {
+                // Try multiple date formats
+                DateTime::parse_from_rfc3339(date_str)
+                    .or_else(|_| {
+                        // Try parsing with +HHMM timezone format (like +0530)
+                        DateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S%z")
+                    })
+                    .or_else(|_| {
+                        // Try parsing as ISO format with timezone
+                        DateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S%:z")
+                    })
+                    .or_else(|_| {
+                        // Try parsing as simple date format and assume IST
+                        NaiveDateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S").map(|dt| {
+                            // Assume IST timezone (+05:30) and convert to UTC
+                            use chrono::FixedOffset;
+                            let ist = FixedOffset::east_opt(5 * 3600 + 30 * 60).unwrap();
+                            ist.from_local_datetime(&dt).unwrap().into()
+                        })
+                    })
+                    .map_err(|e| {
+                        serde::de::Error::custom(format!(
+                            "Failed to parse date '{}': {}",
+                            date_str, e
+                        ))
+                    })?
+                    .with_timezone(&Utc)
+            } else if let Some(timestamp) = array[0].as_i64() {
+                // Parse Unix timestamp
+                DateTime::from_timestamp(timestamp, 0).ok_or_else(|| {
+                    serde::de::Error::custom(format!("Invalid timestamp: {}", timestamp))
+                })?
+            } else {
+                return Err(serde::de::Error::custom("Date must be string or timestamp"));
+            };
+
+            let open = array[1]
+                .as_f64()
+                .ok_or_else(|| serde::de::Error::custom("Open price must be a number"))?;
+            let high = array[2]
+                .as_f64()
+                .ok_or_else(|| serde::de::Error::custom("High price must be a number"))?;
+            let low = array[3]
+                .as_f64()
+                .ok_or_else(|| serde::de::Error::custom("Low price must be a number"))?;
+            let close = array[4]
+                .as_f64()
+                .ok_or_else(|| serde::de::Error::custom("Close price must be a number"))?;
+            let volume = array[5]
+                .as_u64()
+                .ok_or_else(|| serde::de::Error::custom("Volume must be a positive integer"))?;
+
+            // Open interest is optional (7th element)
+            let oi = if array.len() > 6 {
+                array[6].as_u64()
+            } else {
+                None
+            };
+
+            Ok(Candle {
+                date,
+                open,
+                high,
+                low,
+                close,
+                volume,
+                oi,
+            })
+        } else {
+            // Handle object format for backwards compatibility
+            #[derive(Deserialize)]
+            struct CandleObject {
+                date: DateTime<Utc>,
+                open: f64,
+                high: f64,
+                low: f64,
+                close: f64,
+                volume: u64,
+                oi: Option<u64>,
+            }
+
+            let obj: CandleObject = serde_json::from_value(value).map_err(|e| {
+                serde::de::Error::custom(format!("Failed to deserialize candle object: {}", e))
+            })?;
+
+            Ok(Candle {
+                date: obj.date,
+                open: obj.open,
+                high: obj.high,
+                low: obj.low,
+                close: obj.close,
+                volume: obj.volume,
+                oi: obj.oi,
+            })
+        }
+    }
 }
 
 /// Historical data response
@@ -343,7 +459,7 @@ impl HistoricalDataRequest {
             let duration = self.to - self.from;
             let days = duration.num_days();
             let max_days = self.interval.max_days_allowed();
-            
+
             return Err(format!(
                 "Date range of {} days exceeds maximum allowed {} days for {} interval",
                 days, max_days, self.interval
@@ -454,13 +570,27 @@ impl HistoricalDataRequest {
             // Fix data duplication: Move to next day to avoid both-inclusive overlap
             // For intraday intervals, move by appropriate time increment
             current_from = match self.interval {
-                crate::models::common::Interval::Minute => current_to + chrono::Duration::minutes(1),
-                crate::models::common::Interval::ThreeMinute => current_to + chrono::Duration::minutes(3),
-                crate::models::common::Interval::FiveMinute => current_to + chrono::Duration::minutes(5),
-                crate::models::common::Interval::TenMinute => current_to + chrono::Duration::minutes(10),
-                crate::models::common::Interval::FifteenMinute => current_to + chrono::Duration::minutes(15),
-                crate::models::common::Interval::ThirtyMinute => current_to + chrono::Duration::minutes(30),
-                crate::models::common::Interval::SixtyMinute => current_to + chrono::Duration::hours(1),
+                crate::models::common::Interval::Minute => {
+                    current_to + chrono::Duration::minutes(1)
+                }
+                crate::models::common::Interval::ThreeMinute => {
+                    current_to + chrono::Duration::minutes(3)
+                }
+                crate::models::common::Interval::FiveMinute => {
+                    current_to + chrono::Duration::minutes(5)
+                }
+                crate::models::common::Interval::TenMinute => {
+                    current_to + chrono::Duration::minutes(10)
+                }
+                crate::models::common::Interval::FifteenMinute => {
+                    current_to + chrono::Duration::minutes(15)
+                }
+                crate::models::common::Interval::ThirtyMinute => {
+                    current_to + chrono::Duration::minutes(30)
+                }
+                crate::models::common::Interval::SixtyMinute => {
+                    current_to + chrono::Duration::hours(1)
+                }
                 crate::models::common::Interval::Day => current_to + chrono::Duration::days(1),
             };
         }
@@ -510,7 +640,11 @@ impl HistoricalDataRequest {
 
         while current_to > self.from {
             let min_from = current_to - chrono::Duration::days(max_days);
-            let current_from = if min_from < self.from { self.from } else { min_from };
+            let current_from = if min_from < self.from {
+                self.from
+            } else {
+                min_from
+            };
 
             let request = Self {
                 instrument_token: self.instrument_token,
@@ -525,13 +659,27 @@ impl HistoricalDataRequest {
 
             // Fix data duplication: Move to previous time increment to avoid overlap
             current_to = match self.interval {
-                crate::models::common::Interval::Minute => current_from - chrono::Duration::minutes(1),
-                crate::models::common::Interval::ThreeMinute => current_from - chrono::Duration::minutes(3),
-                crate::models::common::Interval::FiveMinute => current_from - chrono::Duration::minutes(5),
-                crate::models::common::Interval::TenMinute => current_from - chrono::Duration::minutes(10),
-                crate::models::common::Interval::FifteenMinute => current_from - chrono::Duration::minutes(15),
-                crate::models::common::Interval::ThirtyMinute => current_from - chrono::Duration::minutes(30),
-                crate::models::common::Interval::SixtyMinute => current_from - chrono::Duration::hours(1),
+                crate::models::common::Interval::Minute => {
+                    current_from - chrono::Duration::minutes(1)
+                }
+                crate::models::common::Interval::ThreeMinute => {
+                    current_from - chrono::Duration::minutes(3)
+                }
+                crate::models::common::Interval::FiveMinute => {
+                    current_from - chrono::Duration::minutes(5)
+                }
+                crate::models::common::Interval::TenMinute => {
+                    current_from - chrono::Duration::minutes(10)
+                }
+                crate::models::common::Interval::FifteenMinute => {
+                    current_from - chrono::Duration::minutes(15)
+                }
+                crate::models::common::Interval::ThirtyMinute => {
+                    current_from - chrono::Duration::minutes(30)
+                }
+                crate::models::common::Interval::SixtyMinute => {
+                    current_from - chrono::Duration::hours(1)
+                }
                 crate::models::common::Interval::Day => current_from - chrono::Duration::days(1),
             };
         }
@@ -628,7 +776,9 @@ impl HistoricalDataRequest {
         client: &crate::connect::KiteConnect,
         continue_on_error: bool,
     ) -> crate::models::common::KiteResult<HistoricalData> {
-        client.historical_data_chunked(self, continue_on_error).await
+        client
+            .historical_data_chunked(self, continue_on_error)
+            .await
     }
 
     /// Convenience method for fetching data with default error handling
@@ -654,7 +804,7 @@ impl HistoricalDataRequest {
     ///     NaiveDateTime::parse_from_str("2024-01-01 15:30:00", "%Y-%m-%d %H:%M:%S")?,
     ///     Interval::Day,
     /// ).fetch(&client).await?;
-    /// 
+    ///
     /// println!("Got {} candles", data.candles.len());
     /// # Ok(())
     /// # }
@@ -664,5 +814,66 @@ impl HistoricalDataRequest {
         client: &crate::connect::KiteConnect,
     ) -> crate::models::common::KiteResult<HistoricalData> {
         self.fetch_with_chunking(client, false).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{DateTime, Utc};
+    use serde_json::json;
+
+    #[test]
+    fn test_candle_deserialization_array_format() {
+        // Test with 6 elements (no OI)
+        let json_data = json!(["2024-12-20T09:15:00+0530", 100.5, 105.0, 99.5, 104.0, 1000]);
+
+        let candle: Candle = serde_json::from_value(json_data).unwrap();
+
+        assert_eq!(candle.open, 100.5);
+        assert_eq!(candle.high, 105.0);
+        assert_eq!(candle.low, 99.5);
+        assert_eq!(candle.close, 104.0);
+        assert_eq!(candle.volume, 1000);
+        assert_eq!(candle.oi, None);
+    }
+
+    #[test]
+    fn test_candle_deserialization_with_oi() {
+        // Test with 7 elements (with OI)
+        let json_data = json!([
+            "2024-12-20T09:15:00+0530",
+            100.5,
+            105.0,
+            99.5,
+            104.0,
+            1000,
+            500
+        ]);
+
+        let candle: Candle = serde_json::from_value(json_data).unwrap();
+
+        assert_eq!(candle.open, 100.5);
+        assert_eq!(candle.high, 105.0);
+        assert_eq!(candle.low, 99.5);
+        assert_eq!(candle.close, 104.0);
+        assert_eq!(candle.volume, 1000);
+        assert_eq!(candle.oi, Some(500));
+    }
+
+    #[test]
+    fn test_date_parsing_formats() {
+        // Test IST timezone format
+        let ist_date = "2024-12-20T09:15:00+0530";
+        let json_data = json!([ist_date, 100.0, 101.0, 99.0, 100.5, 1000]);
+        let candle: Candle = serde_json::from_value(json_data).unwrap();
+
+        // Should be converted to UTC (IST is UTC+5:30, so 09:15 IST = 03:45 UTC)
+        let expected_utc =
+            DateTime::parse_from_str("2024-12-20T03:45:00+0000", "%Y-%m-%dT%H:%M:%S%z")
+                .unwrap()
+                .with_timezone(&Utc);
+
+        assert_eq!(candle.date, expected_utc);
     }
 }

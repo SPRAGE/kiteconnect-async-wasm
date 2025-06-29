@@ -4,15 +4,28 @@
 //! including typed methods, retry logic, and enhanced error handling.
 
 use kiteconnect_async_wasm::connect::{KiteConnect, KiteConnectConfig, RetryConfig};
+use std::env;
 use std::time::Duration;
+
+/// Get API credentials from environment variables
+fn get_credentials() -> Result<(String, String), Box<dyn std::error::Error>> {
+    let api_key =
+        env::var("KITE_API_KEY").map_err(|_| "KITE_API_KEY environment variable not set")?;
+    let api_secret =
+        env::var("KITE_API_SECRET").map_err(|_| "KITE_API_SECRET environment variable not set")?;
+    Ok((api_key, api_secret))
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== KiteConnect v1.0.2 Dual API Example ===\n");
 
+    // Get credentials from environment variables
+    let (api_key, _api_secret) = get_credentials()?;
+
     // Example 1: Basic client with default configuration
     println!("1. Creating basic KiteConnect client...");
-    let mut basic_client = KiteConnect::new("your_api_key", "");
+    let mut basic_client = KiteConnect::new(&api_key, "");
     println!("   ✓ Basic client created\n");
 
     // Example 2: Advanced client with custom configuration
@@ -28,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    let advanced_client = KiteConnect::new_with_config("your_api_key", custom_config);
+    let advanced_client = KiteConnect::new_with_config(&api_key, custom_config);
     println!("   ✓ Advanced client created with custom configuration\n");
 
     // Example 3: Authentication flow (placeholder)

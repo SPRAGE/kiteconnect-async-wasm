@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Candle","HistoricalData","HistoricalDataRequest","HistoricalMetadata"]};

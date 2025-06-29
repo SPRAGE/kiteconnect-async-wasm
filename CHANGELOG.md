@@ -7,7 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.3] - 2025-06-26
+## [1.0.7] - 2025-06-29
+
+### Fixed
+- **Documentation Generation**: Fixed documentation generation script path issues
+  - Corrected crate name references from `kiteconnect` to `kiteconnect_async_wasm`
+  - Fixed all documentation links and paths in generation script
+  - Documentation now generates successfully with proper navigation links
+
+### Enhanced
+- **Documentation**: Comprehensive documentation updates and regeneration
+  - Generated complete API documentation with 38,356+ HTML files
+  - Added Quick Reference guide with updated examples including v1.0.6+ features
+  - Updated documentation to reflect environment variable usage patterns
+  - Added proper documentation for custom Candle deserializer functionality
+
+### Improved
+- **Code Quality**: Removed unused imports and warnings
+  - Fixed unused import warnings in `candle_deserialization_test.rs`
+  - Ensured all examples compile cleanly without warnings
+  - Improved overall code quality and maintenance
+
+## [1.0.6] - 2025-06-29
+
+### Fixed
+- **Historical Data Deserialization**: Major improvements to historical data API robustness
+  - Fixed custom `Candle` deserializer to handle both array and object formats from KiteConnect API
+  - Resolved missing metadata field issue by synthesizing metadata from request parameters
+  - Added support for various date/time formats including timezone-aware parsing (+0530)
+  - Fixed handling of missing Open Interest (OI) data when API returns 6 elements instead of 7
+  - Enhanced error handling for different API response formats
+
+- **Environment Variable Support**: Updated all examples to use environment variables
+  - All historical data examples now use `KITE_API_KEY`, `KITE_ACCESS_TOKEN`, and `KITE_API_SECRET`
+  - Added proper error messages when environment variables are not set
+  - Improved example code robustness and security
+
+### Enhanced
+- **Example Code**: Updated and tested all historical data examples
+  - `simple_256265_example.rs` - Successfully fetches real market data for instrument token 256265
+  - `historical_data_256265_example.rs` - Comprehensive example with validation
+  - `candle_deserialization_test.rs` - Test suite for various data formats
+  - All examples now compile and run without errors
+
+- **API Robustness**: Improved resilience to KiteConnect API response variations
+  - Custom deserializer handles both legacy and current API response formats
+  - Graceful degradation when optional fields are missing
+  - Better error reporting for debugging API issues
+
+## [1.0.5] - 2025-06-26
 
 ### Added
 - **Enhanced Historical Data API**: Complete refactor of historical data handling

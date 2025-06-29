@@ -1,0 +1,300 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Portfolio Module"><title>kiteconnect_async_wasm::connect::portfolio - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="kiteconnect_async_wasm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../../static.files/storage-82c7156e.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../kiteconnect_async_wasm/index.html">kiteconnect_<wbr>async_<wbr>wasm</a><span class="version">1.0.6</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module portfolio</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#portfolio-module" title="Portfolio Module">Portfolio Module</a><ul><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#key-features" title="Key Features">Key Features</a></li><li><a href="#available-methods" title="Available Methods">Available Methods</a></li><li><a href="#usage-examples" title="Usage Examples">Usage Examples</a></li><li><a href="#data-models" title="Data Models">Data Models</a></li><li><a href="#error-handling" title="Error Handling">Error Handling</a></li><li><a href="#performance-considerations" title="Performance Considerations">Performance Considerations</a></li><li><a href="#rate-limiting" title="Rate Limiting">Rate Limiting</a></li><li><a href="#thread-safety" title="Thread Safety">Thread Safety</a></li><li><a href="#migration-from-v102" title="Migration from v1.0.2">Migration from v1.0.2</a></li></ul></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In kiteconnect_<wbr>async_<wbr>wasm::<wbr>connect</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">kiteconnect_async_wasm</a>::<wbr><a href="../index.html">connect</a></div><h1>Module <span>portfolio</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/kiteconnect_async_wasm/connect/portfolio.rs.html#1-747">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="portfolio-module"><a class="doc-anchor" href="#portfolio-module">§</a>Portfolio Module</h2>
+<p>This module provides comprehensive portfolio management capabilities for the KiteConnect API v1.0.3,
+offering both real-time portfolio tracking and detailed analysis of holdings and positions.</p>
+<h3 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h3>
+<p>The portfolio module is the central component for managing your trading and investment portfolio.
+It provides access to holdings (long-term investments), positions (trading activities), margins,
+and portfolio analytics with both legacy JSON-based and modern strongly-typed APIs.</p>
+<h3 id="key-features"><a class="doc-anchor" href="#key-features">§</a>Key Features</h3><h4 id="-dual-api-support"><a class="doc-anchor" href="#-dual-api-support">§</a>🔄 <strong>Dual API Support</strong></h4>
+<ul>
+<li><strong>Legacy API</strong>: Returns <code>JsonValue</code> for backward compatibility</li>
+<li><strong>Typed API</strong>: Returns structured types with compile-time safety (methods ending in <code>_typed</code>)</li>
+</ul>
+<h4 id="-comprehensive-portfolio-data"><a class="doc-anchor" href="#-comprehensive-portfolio-data">§</a>📊 <strong>Comprehensive Portfolio Data</strong></h4>
+<ul>
+<li><strong>Holdings</strong>: Long-term investments with P&amp;L tracking</li>
+<li><strong>Positions</strong>: Intraday and overnight trading positions</li>
+<li><strong>Margins</strong>: Available funds and utilization across segments</li>
+<li><strong>Analytics</strong>: Portfolio summaries and performance metrics</li>
+</ul>
+<h4 id="-advanced-features"><a class="doc-anchor" href="#-advanced-features">§</a>💡 <strong>Advanced Features</strong></h4>
+<ul>
+<li><strong>Real-time P&amp;L</strong>: Live profit/loss calculations</li>
+<li><strong>Position Analysis</strong>: Day vs overnight position tracking</li>
+<li><strong>Risk Management</strong>: Margin monitoring and limit checking</li>
+<li><strong>Portfolio Conversion</strong>: Convert positions between product types</li>
+</ul>
+<h3 id="available-methods"><a class="doc-anchor" href="#available-methods">§</a>Available Methods</h3><h4 id="holdings-management"><a class="doc-anchor" href="#holdings-management">§</a>Holdings Management</h4>
+<ul>
+<li><a href="../struct.KiteConnect.html#method.holdings" title="method kiteconnect_async_wasm::connect::KiteConnect::holdings"><code>holdings()</code></a> / <a href="../struct.KiteConnect.html#method.holdings_typed" title="method kiteconnect_async_wasm::connect::KiteConnect::holdings_typed"><code>holdings_typed()</code></a> - Get all stock holdings</li>
+<li>Portfolio analysis and P&amp;L tracking</li>
+<li>T+1 quantity and sellable quantity calculations</li>
+</ul>
+<h4 id="positions-tracking"><a class="doc-anchor" href="#positions-tracking">§</a>Positions Tracking</h4>
+<ul>
+<li><a href="../struct.KiteConnect.html#method.positions" title="method kiteconnect_async_wasm::connect::KiteConnect::positions"><code>positions()</code></a> / <a href="../struct.KiteConnect.html#method.positions_typed" title="method kiteconnect_async_wasm::connect::KiteConnect::positions_typed"><code>positions_typed()</code></a> - Get current positions</li>
+<li>Day and net position separation</li>
+<li>Real-time P&amp;L and M2M calculations</li>
+</ul>
+<h4 id="margin-management"><a class="doc-anchor" href="#margin-management">§</a>Margin Management</h4>
+<ul>
+<li><a href="../struct.KiteConnect.html#method.margins" title="method kiteconnect_async_wasm::connect::KiteConnect::margins"><code>margins()</code></a> / <a href="../struct.KiteConnect.html#method.margins_typed" title="method kiteconnect_async_wasm::connect::KiteConnect::margins_typed"><code>margins_typed()</code></a> - Get available margins</li>
+<li>Segment-wise margin tracking</li>
+<li>Utilization and available funds monitoring</li>
+</ul>
+<h3 id="usage-examples"><a class="doc-anchor" href="#usage-examples">§</a>Usage Examples</h3><h4 id="holdings-analysis"><a class="doc-anchor" href="#holdings-analysis">§</a>Holdings Analysis</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get all holdings (typed API - recommended)
+</span><span class="kw">let </span>holdings = client.holdings_typed().<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="kw">let </span><span class="kw-2">mut </span>total_investment = <span class="number">0.0</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>total_value = <span class="number">0.0</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>total_pnl = <span class="number">0.0</span>;
+
+<span class="macro">println!</span>(<span class="string">"Holdings Portfolio Analysis:"</span>);
+<span class="macro">println!</span>(<span class="string">"============================"</span>);
+
+<span class="kw">for </span>holding <span class="kw">in </span><span class="kw-2">&amp;</span>holdings {
+    <span class="kw">let </span>investment = holding.investment_value();
+    <span class="kw">let </span>current_value = holding.market_value();
+    <span class="kw">let </span>pnl_pct = holding.pnl_percentage();
+     
+    total_investment += investment;
+    total_value += current_value;
+    total_pnl += holding.pnl;
+     
+    <span class="macro">println!</span>(<span class="string">"📈 {}: {} shares"</span>, holding.trading_symbol, holding.quantity);
+    <span class="macro">println!</span>(<span class="string">"   💰 Investment: ₹{:.2} | Current: ₹{:.2}"</span>, investment, current_value);
+    <span class="macro">println!</span>(<span class="string">"   📊 P&amp;L: ₹{:.2} ({:.2}%)"</span>, holding.pnl, pnl_pct);
+     
+    <span class="comment">// Check trading availability
+    </span><span class="kw">if </span>holding.can_sell_today() {
+        <span class="macro">println!</span>(<span class="string">"   ✅ Can sell {} shares today"</span>, holding.sellable_today());
+    }
+     
+    <span class="macro">println!</span>();
+}
+
+<span class="kw">let </span>overall_pnl_pct = (total_pnl / total_investment) * <span class="number">100.0</span>;
+<span class="macro">println!</span>(<span class="string">"🎯 Portfolio Summary:"</span>);
+<span class="macro">println!</span>(<span class="string">"   Total Investment: ₹{:.2}"</span>, total_investment);
+<span class="macro">println!</span>(<span class="string">"   Current Value: ₹{:.2}"</span>, total_value);
+<span class="macro">println!</span>(<span class="string">"   Total P&amp;L: ₹{:.2} ({:.2}%)"</span>, total_pnl, overall_pnl_pct);</code></pre></div>
+<h4 id="positions-monitoring"><a class="doc-anchor" href="#positions-monitoring">§</a>Positions Monitoring</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get all positions (typed API)
+</span><span class="kw">let </span>positions = client.positions_typed().<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"Active Trading Positions:"</span>);
+<span class="macro">println!</span>(<span class="string">"========================"</span>);
+
+<span class="kw">let </span><span class="kw-2">mut </span>day_pnl = <span class="number">0.0</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>total_pnl = <span class="number">0.0</span>;
+
+<span class="kw">for </span>position <span class="kw">in </span><span class="kw-2">&amp;</span>positions {
+    <span class="kw">if </span>!position.is_flat() {
+        <span class="kw">let </span>direction = <span class="kw">if </span>position.is_long() { <span class="string">"LONG" </span>} <span class="kw">else </span>{ <span class="string">"SHORT" </span>};
+        <span class="kw">let </span>pnl_pct = position.pnl_percentage();
+         
+        day_pnl += position.day_pnl();
+        total_pnl += position.pnl;
+         
+        <span class="macro">println!</span>(<span class="string">"📊 {}: {} {} shares"</span>,
+            position.trading_symbol,
+            position.abs_quantity(),
+            direction);
+        <span class="macro">println!</span>(<span class="string">"   💵 Avg: ₹{:.2} | LTP: ₹{:.2}"</span>,
+            position.average_price, position.last_price);
+        <span class="macro">println!</span>(<span class="string">"   📈 P&amp;L: ₹{:.2} ({:.2}%)"</span>, position.pnl, pnl_pct);
+         
+        <span class="kw">if </span>position.is_day_position() {
+            <span class="macro">println!</span>(<span class="string">"   🔄 Intraday position"</span>);
+        } <span class="kw">else if </span>position.is_overnight_position() {
+            <span class="macro">println!</span>(<span class="string">"   🌙 Overnight position ({})"</span>, position.overnight_quantity);
+        }
+         
+        <span class="macro">println!</span>();
+    }
+}
+
+<span class="macro">println!</span>(<span class="string">"📊 Trading Summary:"</span>);
+<span class="macro">println!</span>(<span class="string">"   Day P&amp;L: ₹{:.2}"</span>, day_pnl);
+<span class="macro">println!</span>(<span class="string">"   Total P&amp;L: ₹{:.2}"</span>, total_pnl);</code></pre></div>
+<h4 id="margin-analysis"><a class="doc-anchor" href="#margin-analysis">§</a>Margin Analysis</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+<span class="kw">use </span>kiteconnect_async_wasm::models::auth::TradingSegment;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get margin data (typed API)
+</span><span class="kw">let </span>margins = client.margins_typed(<span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"Margin Analysis:"</span>);
+<span class="macro">println!</span>(<span class="string">"==============="</span>);
+
+<span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>equity_margin) = margins.equity {
+    <span class="kw">let </span>available = equity_margin.available.cash;
+    <span class="kw">let </span>net = equity_margin.net;
+    <span class="kw">let </span>utilisation_pct = equity_margin.utilisation_percentage();
+     
+    <span class="macro">println!</span>(<span class="string">"💰 Equity Segment:"</span>);
+    <span class="macro">println!</span>(<span class="string">"   Available Cash: ₹{:.2}"</span>, available);
+    <span class="macro">println!</span>(<span class="string">"   Net Margin: ₹{:.2}"</span>, net);
+    <span class="macro">println!</span>(<span class="string">"   Utilisation: {:.1}%"</span>, utilisation_pct);
+     
+    <span class="comment">// Check if sufficient margin for trading
+    </span><span class="kw">let </span>required_margin = <span class="number">50000.0</span>; <span class="comment">// Example
+    </span><span class="kw">if </span>equity_margin.can_place_order(required_margin) {
+        <span class="macro">println!</span>(<span class="string">"   ✅ Sufficient margin for ₹{:.0} order"</span>, required_margin);
+    } <span class="kw">else </span>{
+        <span class="macro">println!</span>(<span class="string">"   ❌ Insufficient margin for ₹{:.0} order"</span>, required_margin);
+    }
+}
+
+<span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>commodity_margin) = margins.commodity {
+    <span class="macro">println!</span>(<span class="string">"🌾 Commodity Segment:"</span>);
+    <span class="macro">println!</span>(<span class="string">"   Available Cash: ₹{:.2}"</span>, commodity_margin.available.cash);
+    <span class="macro">println!</span>(<span class="string">"   Net Margin: ₹{:.2}"</span>, commodity_margin.net);
+}
+
+<span class="comment">// Overall margin check
+</span><span class="kw">let </span>total_cash = margins.total_cash();
+<span class="kw">let </span>total_net = margins.total_net_margin();
+<span class="macro">println!</span>(<span class="string">"🎯 Total Available: ₹{:.2} | Net: ₹{:.2}"</span>, total_cash, total_net);</code></pre></div>
+<h4 id="portfolio-risk-analysis"><a class="doc-anchor" href="#portfolio-risk-analysis">§</a>Portfolio Risk Analysis</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::connect::KiteConnect;
+
+<span class="kw">let </span>client = KiteConnect::new(<span class="string">"api_key"</span>, <span class="string">"access_token"</span>);
+
+<span class="comment">// Get holdings and positions for comprehensive analysis
+</span><span class="kw">let </span>(holdings, positions) = <span class="macro">tokio::try_join!</span>(
+    client.holdings_typed(),
+    client.positions_typed()
+)<span class="question-mark">?</span>;
+
+<span class="macro">println!</span>(<span class="string">"Portfolio Risk Analysis:"</span>);
+<span class="macro">println!</span>(<span class="string">"======================="</span>);
+
+<span class="comment">// Holdings analysis
+</span><span class="kw">let </span>profitable_holdings = holdings.iter().filter(|h| h.is_profitable()).count();
+<span class="kw">let </span>loss_holdings = holdings.iter().filter(|h| h.is_loss()).count();
+<span class="kw">let </span>holdings_win_rate = (profitable_holdings <span class="kw">as </span>f64 / holdings.len() <span class="kw">as </span>f64) * <span class="number">100.0</span>;
+
+<span class="macro">println!</span>(<span class="string">"📊 Holdings (Long-term):"</span>);
+<span class="macro">println!</span>(<span class="string">"   Total Holdings: {}"</span>, holdings.len());
+<span class="macro">println!</span>(<span class="string">"   Profitable: {} | Loss-making: {}"</span>, profitable_holdings, loss_holdings);
+<span class="macro">println!</span>(<span class="string">"   Win Rate: {:.1}%"</span>, holdings_win_rate);
+
+<span class="comment">// Positions analysis
+</span><span class="kw">let </span>active_positions: Vec&lt;<span class="kw">_</span>&gt; = positions.iter().filter(|p| !p.is_flat()).collect();
+<span class="kw">let </span>profitable_positions = active_positions.iter().filter(|p| p.is_profitable()).count();
+<span class="kw">let </span>loss_positions = active_positions.iter().filter(|p| p.is_loss()).count();
+
+<span class="kw">if </span>!active_positions.is_empty() {
+    <span class="kw">let </span>positions_win_rate = (profitable_positions <span class="kw">as </span>f64 / active_positions.len() <span class="kw">as </span>f64) * <span class="number">100.0</span>;
+     
+    <span class="macro">println!</span>(<span class="string">"📈 Active Positions (Trading):"</span>);
+    <span class="macro">println!</span>(<span class="string">"   Active Positions: {}"</span>, active_positions.len());
+    <span class="macro">println!</span>(<span class="string">"   Profitable: {} | Loss-making: {}"</span>, profitable_positions, loss_positions);
+    <span class="macro">println!</span>(<span class="string">"   Win Rate: {:.1}%"</span>, positions_win_rate);
+}
+
+<span class="comment">// Risk metrics
+</span><span class="kw">let </span>total_holdings_value: f64 = holdings.iter().map(|h| h.market_value()).sum();
+<span class="kw">let </span>total_position_exposure: f64 = active_positions.iter()
+    .map(|p| p.market_value())
+    .sum();
+
+<span class="macro">println!</span>(<span class="string">"⚖️ Risk Exposure:"</span>);
+<span class="macro">println!</span>(<span class="string">"   Holdings Value: ₹{:.2}"</span>, total_holdings_value);
+<span class="macro">println!</span>(<span class="string">"   Position Exposure: ₹{:.2}"</span>, total_position_exposure);
+<span class="macro">println!</span>(<span class="string">"   Total Exposure: ₹{:.2}"</span>, total_holdings_value + total_position_exposure);</code></pre></div>
+<h3 id="data-models"><a class="doc-anchor" href="#data-models">§</a>Data Models</h3><h4 id="holdings"><a class="doc-anchor" href="#holdings">§</a>Holdings</h4>
+<p>The <a href="../../models/portfolio/holdings/struct.Holding.html" title="struct kiteconnect_async_wasm::models::portfolio::holdings::Holding"><code>Holding</code></a> struct represents long-term investments with comprehensive tracking:</p>
+<ul>
+<li><strong>Investment tracking</strong>: Average price, current price, P&amp;L calculations</li>
+<li><strong>Quantity management</strong>: Total, T+1, realised, and pledged quantities</li>
+<li><strong>Trading availability</strong>: Check what can be sold today vs tomorrow</li>
+<li><strong>Portfolio analytics</strong>: Market value, investment value, percentage returns</li>
+</ul>
+<h4 id="positions"><a class="doc-anchor" href="#positions">§</a>Positions</h4>
+<p>The <a href="../../models/portfolio/positions/struct.Position.html" title="struct kiteconnect_async_wasm::models::portfolio::positions::Position"><code>Position</code></a> struct represents active trading positions:</p>
+<ul>
+<li><strong>Direction tracking</strong>: Long vs short positions</li>
+<li><strong>Day vs Net</strong>: Separate intraday and overnight positions</li>
+<li><strong>P&amp;L breakdown</strong>: Realised, unrealised, and M2M calculations</li>
+<li><strong>Risk metrics</strong>: Exposure, margin requirements</li>
+</ul>
+<h4 id="margins"><a class="doc-anchor" href="#margins">§</a>Margins</h4>
+<p>The <a href="../../models/auth/margins/struct.MarginData.html" title="struct kiteconnect_async_wasm::models::auth::margins::MarginData"><code>MarginData</code></a> struct provides fund information:</p>
+<ul>
+<li><strong>Segment-wise</strong>: Equity and commodity margins separately</li>
+<li><strong>Available funds</strong>: Cash, collateral, and total available</li>
+<li><strong>Utilisation</strong>: Used margin and exposure tracking</li>
+<li><strong>Order capacity</strong>: Check if sufficient margin for new orders</li>
+</ul>
+<h3 id="error-handling"><a class="doc-anchor" href="#error-handling">§</a>Error Handling</h3>
+<p>All methods return <code>Result&lt;T&gt;</code> with comprehensive error information:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>kiteconnect_async_wasm::models::common::KiteError;
+
+<span class="kw">match </span>client.holdings_typed().<span class="kw">await </span>{
+    <span class="prelude-val">Ok</span>(holdings) =&gt; {
+        <span class="macro">println!</span>(<span class="string">"Portfolio loaded: {} holdings"</span>, holdings.len());
+        <span class="comment">// Process holdings...
+    </span>}
+    <span class="prelude-val">Err</span>(KiteError::Authentication(msg)) =&gt; {
+        <span class="macro">eprintln!</span>(<span class="string">"Authentication failed: {}"</span>, msg);
+        <span class="comment">// Handle re-authentication
+    </span>}
+    <span class="prelude-val">Err</span>(KiteError::Api { status, message, .. }) =&gt; {
+        <span class="macro">eprintln!</span>(<span class="string">"API Error {}: {}"</span>, status, message);
+        <span class="comment">// Handle API errors
+    </span>}
+    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"Other error: {}"</span>, e),
+}</code></pre></div>
+<h3 id="performance-considerations"><a class="doc-anchor" href="#performance-considerations">§</a>Performance Considerations</h3><h4 id="efficient-data-access"><a class="doc-anchor" href="#efficient-data-access">§</a>Efficient Data Access</h4>
+<ul>
+<li><strong>Batch Operations</strong>: Get holdings and positions together with <code>tokio::try_join!</code></li>
+<li><strong>Typed APIs</strong>: Use <code>*_typed()</code> methods for better performance and type safety</li>
+<li><strong>Selective Updates</strong>: Update only necessary data for real-time monitoring</li>
+</ul>
+<h4 id="memory-usage"><a class="doc-anchor" href="#memory-usage">§</a>Memory Usage</h4>
+<ul>
+<li><strong>Structured Data</strong>: Typed APIs use less memory than JSON parsing</li>
+<li><strong>Efficient Calculations</strong>: Built-in helper methods reduce computation overhead</li>
+<li><strong>Lazy Evaluation</strong>: Calculate metrics only when needed</li>
+</ul>
+<h3 id="rate-limiting"><a class="doc-anchor" href="#rate-limiting">§</a>Rate Limiting</h3>
+<p>The module automatically handles rate limiting according to KiteConnect API guidelines:</p>
+<ul>
+<li><strong>Portfolio APIs</strong>: 3 requests per second for holdings, positions, margins</li>
+<li><strong>Automatic Retry</strong>: Built-in retry mechanism with exponential backoff</li>
+<li><strong>Connection Pooling</strong>: HTTP connections are reused for better performance</li>
+</ul>
+<h3 id="thread-safety"><a class="doc-anchor" href="#thread-safety">§</a>Thread Safety</h3>
+<p>All methods are thread-safe and can be called concurrently:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// Concurrent portfolio data retrieval
+</span><span class="kw">let </span>(holdings, positions, margins) = <span class="macro">tokio::try_join!</span>(
+    client.holdings_typed(),
+    client.positions_typed(),
+    client.margins_typed(<span class="prelude-val">None</span>)
+)<span class="question-mark">?</span>;
+
+<span class="comment">// All data retrieved concurrently for maximum efficiency</span></code></pre></div>
+<h3 id="migration-from-v102"><a class="doc-anchor" href="#migration-from-v102">§</a>Migration from v1.0.2</h3>
+<p>All existing methods continue to work. New typed methods provide enhanced features:</p>
+<ul>
+<li>Replace <code>holdings()</code> with <code>holdings_typed()</code> for structured data</li>
+<li>Use <code>positions_typed()</code> and <code>margins_typed()</code> for type safety</li>
+<li>Legacy methods remain available for backward compatibility</li>
+<li>Enhanced helper methods on all model structs for better analytics</li>
+</ul>
+</div></details></section></div></main></body></html>

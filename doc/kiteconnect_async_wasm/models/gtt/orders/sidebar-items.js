@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BracketGTTBuilder","GTTBuilder","GTTConditionBuilder","GTTOrderBuilder","GTTTemplate","StopLossGTTBuilder","TargetGTTBuilder"]};

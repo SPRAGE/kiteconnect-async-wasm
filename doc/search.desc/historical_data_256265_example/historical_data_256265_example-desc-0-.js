@@ -1,0 +1,1 @@
+searchState.loadedDescShard("historical_data_256265_example", 0, "Example demonstrating historical data retrieval for …\nAnalyze derivatives data with open interest\nAnalyze intraday data and show basic statistics\nGet API credentials from environment variables\nSample function to demonstrate processing historical data")
