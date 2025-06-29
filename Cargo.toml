@@ -12,6 +12,7 @@ categories = ["api-bindings", "web-programming", "wasm"]
 readme = "README.md"
 edition = "2021"
 
+
 # Configuration for docs.rs documentation builds
 [package.metadata.docs.rs]
 features = ["native", "debug"]
