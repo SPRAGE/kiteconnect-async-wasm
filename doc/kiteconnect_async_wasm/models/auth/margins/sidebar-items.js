@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["TradingSegment"],"struct":["FundTransaction","MarginData","MarginFunds","MarginUtilisation","SegmentMargin"]};

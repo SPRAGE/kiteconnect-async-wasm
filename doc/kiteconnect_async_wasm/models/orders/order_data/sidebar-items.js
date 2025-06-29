@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["OrderStatus"],"struct":["BracketOrderResponse","CoverOrderResponse","Order","OrderCancellation","OrderMeta","OrderModification"]};

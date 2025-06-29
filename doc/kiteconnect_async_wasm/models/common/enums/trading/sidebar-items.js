@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["OrderType","Product","TransactionType","Validity","Variety"]};

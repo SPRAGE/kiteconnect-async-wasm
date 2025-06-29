@@ -1,1 +1,0 @@
-searchState.loadedDescShard("token_invalidation_demo", 0, "Authentication Example with Token Invalidation\nGet API credentials from environment variables")

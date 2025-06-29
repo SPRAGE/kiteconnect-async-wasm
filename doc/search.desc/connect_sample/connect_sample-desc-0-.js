@@ -1,1 +1,0 @@
-searchState.loadedDescShard("connect_sample", 0, "Get API credentials from environment variables")
