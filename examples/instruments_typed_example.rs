@@ -171,7 +171,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // === Exchange-specific Analysis ===
     println!("🏛️ Fetching NSE-specific instruments...");
-    let nse_instruments = client.instruments_typed(Some("NSE")).await?;
+    let nse_instruments = client
+        .instruments_typed(Some(kiteconnect_async_wasm::models::Exchange::NSE))
+        .await?;
     println!("✅ NSE instruments: {}", nse_instruments.len());
 
     let nse_options: Vec<_> = nse_instruments

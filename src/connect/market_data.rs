@@ -160,6 +160,7 @@
 //! ### Instruments Search and Analysis
 //! ```rust,no_run
 //! use kiteconnect_async_wasm::connect::KiteConnect;
+//! use kiteconnect_async_wasm::models::common::Exchange;
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -168,6 +169,14 @@
 //! // Get all instruments with type safety (recommended)
 //! let instruments = client.instruments_typed(None).await?;
 //! println!("Total instruments available: {}", instruments.len());
+//!
+//! // Get NSE instruments only using type-safe enum
+//! let nse_instruments = client.instruments_typed(Some(Exchange::NSE)).await?;
+//! println!("NSE instruments: {}", nse_instruments.len());
+//!
+//! // Get derivatives instruments using type-safe enum
+//! let nfo_instruments = client.instruments_typed(Some(Exchange::NFO)).await?;
+//! println!("NFO derivatives: {}", nfo_instruments.len());
 //!
 //! // Filter and analyze with helper methods
 //! let reliance_options: Vec<_> = instruments
@@ -272,10 +281,11 @@ use csv::ReaderBuilder;
 
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use crate::connect::utils::parse_csv_with_core;
+use crate::connect::utils::RequestHandler;
 use crate::connect::KiteConnect;
 
 // Import typed models for dual API support
-use crate::models::common::{KiteError, KiteResult};
+use crate::models::common::{Exchange, KiteError, KiteResult};
 use crate::models::market_data::{
     HistoricalData, HistoricalDataRequest, HistoricalMetadata, Quote, LTP, OHLC,
 };
@@ -319,6 +329,8 @@ impl KiteConnect {
                 if let Ok(cache_guard) = self.response_cache.lock() {
                     if let Some(ref cache) = *cache_guard {
                         if let Some(cached_data) = cache.get_instruments() {
+                            #[cfg(feature = "debug")]
+                            log::debug!("Returning cached instruments data");
                             return Ok(cached_data);
                         }
                     }
@@ -334,17 +346,59 @@ impl KiteConnect {
             vec![]
         };
 
+        #[cfg(feature = "debug")]
+        log::debug!(
+            "Requesting instruments: endpoint={:?}, path_segments={:?}",
+            endpoint,
+            path_segments
+        );
+
         let resp = self
             .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
             .await
             .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
-        let body = resp.text().await?;
+
+        #[cfg(feature = "debug")]
+        log::debug!("Received response with status: {}", resp.status());
+
+        // Check if response is gzipped and handle accordingly
+        let content_encoding = resp
+            .headers()
+            .get("content-encoding")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        let body_text = if content_encoding.contains("gzip") {
+            #[cfg(feature = "debug")]
+            log::debug!("Decompressing gzipped response");
+
+            let body_bytes = resp.bytes().await?;
+            use std::io::Read;
+            let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
+            let mut decompressed = String::new();
+            decoder.read_to_string(&mut decompressed)?;
+            decompressed
+        } else {
+            resp.text().await?
+        };
+
+        #[cfg(feature = "debug")]
+        log::debug!(
+            "Decompressed body length: {} bytes, first 200 chars: {}",
+            body_text.len(),
+            &body_text.chars().take(200).collect::<String>()
+        );
 
         // Parse CSV response
-        let mut rdr = ReaderBuilder::new().from_reader(body.as_bytes());
+        let mut rdr = ReaderBuilder::new().from_reader(body_text.as_bytes());
         let mut result = Vec::new();
 
         let headers = rdr.headers()?.clone();
+        #[cfg(feature = "debug")]
+        log::debug!("CSV headers: {:?}", headers);
+
+        let mut _record_count = 0;
         for record in rdr.records() {
             let record = record?;
             let mut obj = serde_json::Map::new();
@@ -355,7 +409,11 @@ impl KiteConnect {
                 }
             }
             result.push(JsonValue::Object(obj));
+            _record_count += 1;
         }
+
+        #[cfg(feature = "debug")]
+        log::debug!("Parsed {} records from CSV", _record_count);
 
         let result_json = JsonValue::Array(result);
 
@@ -402,7 +460,30 @@ impl KiteConnect {
             .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
             .await
             .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
+
+        // In WASM, browsers typically handle gzip decompression automatically
+        // But let's check the response format
         let body = resp.text().await?;
+
+        // Debug: Check if the response looks like gzipped binary data
+        if body.len() > 0 && !body.starts_with("instrument_token") {
+            // If it doesn't start with expected CSV header, it might be binary data
+            // In WASM, we might need different handling
+            #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+            {
+                // For now, log the issue
+                web_sys::console::log_1(
+                    &format!("WASM: Unexpected response format, length: {}", body.len()).into(),
+                );
+                web_sys::console::log_1(
+                    &format!(
+                        "WASM: First 100 chars: {}",
+                        &body.chars().take(100).collect::<String>()
+                    )
+                    .into(),
+                );
+            }
+        }
 
         // Parse CSV using csv-core for WASM compatibility
         let result = parse_csv_with_core(&body)?;
@@ -991,7 +1072,7 @@ impl KiteConnect {
     ///
     /// # Arguments
     ///
-    /// * `exchange` - Optional exchange filter ("NSE", "BSE", etc.)
+    /// * `exchange` - Optional exchange filter using the `Exchange` enum for type safety
     ///
     /// # Returns
     ///
@@ -1001,6 +1082,7 @@ impl KiteConnect {
     ///
     /// ```rust,no_run
     /// use kiteconnect_async_wasm::connect::KiteConnect;
+    /// use kiteconnect_async_wasm::models::common::Exchange;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -1009,6 +1091,10 @@ impl KiteConnect {
     /// // Get all instruments with type safety
     /// let instruments = client.instruments_typed(None).await?;
     /// println!("Total instruments: {}", instruments.len());
+    ///
+    /// // Get NSE instruments only using type-safe enum
+    /// let nse_instruments = client.instruments_typed(Some(Exchange::NSE)).await?;
+    /// println!("NSE instruments: {}", nse_instruments.len());
     ///
     /// // Filter and analyze instruments
     /// let reliance_instruments: Vec<_> = instruments
@@ -1027,16 +1113,17 @@ impl KiteConnect {
     ///     }
     /// }
     ///
-    /// // Get NSE instruments only
-    /// let nse_instruments = client.instruments_typed(Some("NSE")).await?;
-    /// println!("NSE instruments: {}", nse_instruments.len());
+    /// // Get derivatives instruments using type-safe enum
+    /// let nfo_instruments = client.instruments_typed(Some(Exchange::NFO)).await?;
+    /// println!("NFO derivatives: {}", nfo_instruments.len());
     /// # Ok(())
     /// # }
     /// ```
     ///
     /// # Features
     ///
-    /// - **Type Safety**: Compile-time validation and IDE autocomplete
+    /// - **Type Safety**: Compile-time validation using `Exchange` enum
+    /// - **IDE Support**: Autocomplete for available exchanges
     /// - **Helper Methods**: Built-in methods like `is_equity()`, `is_option()`, `days_to_expiry()`
     /// - **Caching**: Automatic caching for performance (when enabled)
     /// - **Cross-Platform**: Works on both native and WASM platforms
@@ -1049,11 +1136,15 @@ impl KiteConnect {
     /// - Large instrument lists are processed efficiently
     pub async fn instruments_typed(
         &self,
-        exchange: Option<&str>,
+        exchange: Option<Exchange>,
     ) -> KiteResult<Vec<crate::models::market_data::Instrument>> {
+        // Convert Exchange enum to string for the underlying API call
+        let exchange_str = exchange.as_ref().map(|e| e.to_string());
+        let exchange_str_ref = exchange_str.as_ref().map(|s| s.as_str());
+
         // Get the JSON response using existing method
         let json_response = self
-            .instruments(exchange)
+            .instruments(exchange_str_ref)
             .await
             .map_err(|e| KiteError::general(format!("Failed to get instruments: {}", e)))?;
 
@@ -1086,6 +1177,110 @@ impl KiteConnect {
         } else {
             Err(KiteError::general(
                 "Invalid instruments response format".to_string(),
+            ))
+        }
+    }
+
+    /// Debug version of instruments_typed that shows JSON before conversion
+    pub async fn instruments_typed_debug(
+        &self,
+        exchange: Option<Exchange>,
+    ) -> KiteResult<Vec<crate::models::market_data::Instrument>> {
+        // Convert Exchange enum to string for the underlying API call
+        let exchange_str = exchange.as_ref().map(|e| e.to_string());
+        let exchange_str_ref = exchange_str.as_ref().map(|s| s.as_str());
+
+        println!("🔍 Typed Debug: Getting JSON response first...");
+
+        // Get the JSON response using existing method
+        let json_response = self
+            .instruments(exchange_str_ref)
+            .await
+            .map_err(|e| KiteError::general(format!("Failed to get instruments: {}", e)))?;
+
+        println!(
+            "🔍 Typed Debug: JSON response type: {:?}",
+            if json_response.is_array() {
+                "Array"
+            } else if json_response.is_object() {
+                "Object"
+            } else {
+                "Other"
+            }
+        );
+
+        // Parse the JSON array into typed instruments
+        if let Some(instruments_array) = json_response.as_array() {
+            println!(
+                "🔍 Typed Debug: Found {} instruments in JSON array",
+                instruments_array.len()
+            );
+
+            if instruments_array.is_empty() {
+                println!("🔍 Typed Debug: Array is empty - returning empty vector");
+                return Ok(Vec::new());
+            }
+
+            // Show first few JSON objects for debugging
+            println!("🔍 Typed Debug: First 3 JSON instruments:");
+            for (i, instrument_json) in instruments_array.iter().take(3).enumerate() {
+                println!(
+                    "  {}. {}",
+                    i + 1,
+                    serde_json::to_string_pretty(instrument_json)?
+                );
+            }
+
+            let mut instruments = Vec::new();
+            let mut parse_errors = 0;
+
+            for (index, instrument_json) in instruments_array.iter().enumerate() {
+                // Convert JSON object to Instrument struct
+                match serde_json::from_value::<crate::models::market_data::Instrument>(
+                    instrument_json.clone(),
+                ) {
+                    Ok(instrument) => {
+                        instruments.push(instrument);
+                        if index < 5 {
+                            println!(
+                                "🔍 Typed Debug: Successfully parsed instrument {}: {}",
+                                index + 1,
+                                instruments.last().unwrap().trading_symbol
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        parse_errors += 1;
+                        if parse_errors <= 5 {
+                            println!(
+                                "🔍 Typed Debug: Failed to parse instrument {}: {}",
+                                index + 1,
+                                e
+                            );
+                            println!(
+                                "🔍 Typed Debug: JSON was: {}",
+                                serde_json::to_string_pretty(instrument_json)?
+                            );
+                        }
+                        // Continue with other instruments rather than failing completely
+                        continue;
+                    }
+                }
+            }
+
+            println!(
+                "🔍 Typed Debug: Successfully parsed {} instruments, {} parse errors",
+                instruments.len(),
+                parse_errors
+            );
+            Ok(instruments)
+        } else {
+            println!(
+                "🔍 Typed Debug: JSON response is not an array: {:?}",
+                json_response
+            );
+            Err(KiteError::general(
+                "Invalid instruments response format - not an array".to_string(),
             ))
         }
     }
@@ -1367,5 +1562,304 @@ impl KiteConnect {
             candles: all_candles,
             metadata,
         })
+    }
+
+    /// Simple instruments method for debugging - bypasses rate limiting and caching
+    pub async fn instruments_simple(&self, exchange: Option<&str>) -> Result<JsonValue> {
+        let path = if let Some(exchange) = exchange {
+            format!("/instruments/{}", exchange)
+        } else {
+            "/instruments".to_string()
+        };
+
+        let url = self.build_url(&path, None);
+
+        let resp = self.send_request(url, "GET", None).await?;
+
+        if !resp.status().is_success() {
+            let error_text = resp.text().await?;
+            return Err(anyhow::anyhow!("API Error: {}", error_text));
+        }
+
+        let body = resp.text().await?;
+
+        if body.is_empty() {
+            return Err(anyhow::anyhow!("Empty response body"));
+        }
+
+        // Parse CSV response
+        let mut rdr = csv::ReaderBuilder::new().from_reader(body.as_bytes());
+        let mut result = Vec::new();
+
+        let headers = rdr.headers()?.clone();
+        for record in rdr.records() {
+            let record = record?;
+            let mut obj = serde_json::Map::new();
+
+            for (i, field) in record.iter().enumerate() {
+                if let Some(header) = headers.get(i) {
+                    obj.insert(header.to_string(), JsonValue::String(field.to_string()));
+                }
+            }
+            result.push(JsonValue::Object(obj));
+        }
+
+        Ok(JsonValue::Array(result))
+    }
+
+    /// Get instruments list with gzip decompression support
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+    pub async fn instruments_with_gzip(&self, exchange: Option<&str>) -> Result<JsonValue> {
+        // Check cache first if enabled
+        if let Some(ref cache_config) = self.cache_config {
+            if cache_config.enable_instruments_cache && exchange.is_none() {
+                // Only cache the full instruments list, not exchange-specific ones
+                if let Ok(cache_guard) = self.response_cache.lock() {
+                    if let Some(ref cache) = *cache_guard {
+                        if let Some(cached_data) = cache.get_instruments() {
+                            #[cfg(feature = "debug")]
+                            log::debug!("Returning cached instruments data");
+                            return Ok(cached_data);
+                        }
+                    }
+                }
+            }
+        }
+
+        let endpoint = KiteEndpoint::Instruments;
+
+        let path_segments = if let Some(exchange) = exchange {
+            vec![exchange]
+        } else {
+            vec![]
+        };
+
+        #[cfg(feature = "debug")]
+        log::debug!(
+            "Requesting instruments with gzip support: endpoint={:?}, path_segments={:?}",
+            endpoint,
+            path_segments
+        );
+
+        let resp = self
+            .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
+            .await
+            .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
+
+        #[cfg(feature = "debug")]
+        log::debug!("Received response with status: {}", resp.status());
+
+        // Check if response is gzipped
+        let content_encoding = resp
+            .headers()
+            .get("content-encoding")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        #[cfg(feature = "debug")]
+        log::debug!("Content-Encoding: {}", content_encoding);
+
+        // Decompress if gzipped
+        let body_text = if content_encoding.contains("gzip") {
+            #[cfg(feature = "debug")]
+            log::debug!("Decompressing gzipped response");
+
+            let body_bytes = resp.bytes().await?;
+            use std::io::Read;
+            let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
+            let mut decompressed = String::new();
+            decoder.read_to_string(&mut decompressed)?;
+            decompressed
+        } else {
+            resp.text().await?
+        };
+
+        #[cfg(feature = "debug")]
+        log::debug!(
+            "Decompressed body length: {} bytes, first 200 chars: {}",
+            body_text.len(),
+            &body_text.chars().take(200).collect::<String>()
+        );
+
+        // Parse CSV response
+        let mut rdr = csv::ReaderBuilder::new().from_reader(body_text.as_bytes());
+        let mut result = Vec::new();
+
+        let headers = rdr.headers()?.clone();
+        #[cfg(feature = "debug")]
+        log::debug!("CSV headers: {:?}", headers);
+
+        let mut _record_count = 0;
+        for record in rdr.records() {
+            let record = record?;
+            let mut obj = serde_json::Map::new();
+
+            for (i, field) in record.iter().enumerate() {
+                if let Some(header) = headers.get(i) {
+                    obj.insert(header.to_string(), JsonValue::String(field.to_string()));
+                }
+            }
+            result.push(JsonValue::Object(obj));
+            _record_count += 1;
+        }
+
+        #[cfg(feature = "debug")]
+        log::debug!("Parsed {} records from CSV", _record_count);
+
+        let result_json = JsonValue::Array(result);
+
+        // Cache the result if enabled and it's the full instruments list
+        if let Some(ref cache_config) = self.cache_config {
+            if cache_config.enable_instruments_cache && exchange.is_none() {
+                if let Ok(mut cache_guard) = self.response_cache.lock() {
+                    if let Some(ref mut cache) = *cache_guard {
+                        cache.set_instruments(result_json.clone());
+                    }
+                }
+            }
+        }
+
+        Ok(result_json)
+    }
+
+    /// Debug method to show raw instruments JSON response
+    pub async fn instruments_debug_json(&self, exchange: Option<&str>) -> Result<JsonValue> {
+        let endpoint = KiteEndpoint::Instruments;
+
+        let path_segments = if let Some(exchange) = exchange {
+            vec![exchange]
+        } else {
+            vec![]
+        };
+
+        println!(
+            "🔍 Debug: Making request to endpoint: {:?}",
+            endpoint.config().path
+        );
+        println!("🔍 Debug: Path segments: {:?}", path_segments);
+
+        let resp = self
+            .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
+            .await
+            .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
+
+        println!("🔍 Debug: Response status: {}", resp.status());
+
+        // Check content encoding
+        let content_encoding = resp
+            .headers()
+            .get("content-encoding")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("none")
+            .to_string();
+        println!("🔍 Debug: Content-Encoding: {}", content_encoding);
+
+        // Check content type
+        let content_type = resp
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
+        println!("🔍 Debug: Content-Type: {}", content_type);
+
+        println!("🔍 Debug: Response headers: {:?}", resp.headers());
+
+        // Get raw bytes first
+        let body_bytes = resp.bytes().await?;
+        println!("🔍 Debug: Raw response size: {} bytes", body_bytes.len());
+
+        // Show first few bytes as hex to check if it's binary/gzipped
+        let hex_preview: String = body_bytes
+            .iter()
+            .take(20)
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        println!("🔍 Debug: First 20 bytes (hex): {}", hex_preview);
+
+        // Try to decompress if gzipped
+        let body_text =
+            if content_encoding.contains("gzip") || body_bytes.starts_with(&[0x1f, 0x8b]) {
+                println!("🔍 Debug: Detected gzipped content, decompressing...");
+                use std::io::Read;
+                let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
+                let mut decompressed = String::new();
+                match decoder.read_to_string(&mut decompressed) {
+                    Ok(_) => {
+                        println!(
+                            "🔍 Debug: Successfully decompressed to {} chars",
+                            decompressed.len()
+                        );
+                        decompressed
+                    }
+                    Err(e) => {
+                        println!("🔍 Debug: Gzip decompression failed: {}", e);
+                        String::from_utf8_lossy(&body_bytes).to_string()
+                    }
+                }
+            } else {
+                println!("🔍 Debug: Not gzipped, reading as text");
+                String::from_utf8_lossy(&body_bytes).to_string()
+            };
+
+        println!("🔍 Debug: Text body length: {} chars", body_text.len());
+        println!(
+            "🔍 Debug: First 200 chars: {}",
+            &body_text.chars().take(200).collect::<String>()
+        );
+
+        // Check if it looks like CSV
+        let lines: Vec<&str> = body_text.lines().take(5).collect();
+        println!("🔍 Debug: First 5 lines:");
+        for (i, line) in lines.iter().enumerate() {
+            println!("  {}: {}", i + 1, line);
+        }
+
+        // If it's CSV, try to parse it
+        if body_text.starts_with("instrument_token") || content_type.contains("csv") {
+            println!("🔍 Debug: Attempting CSV parsing...");
+
+            let mut rdr = csv::ReaderBuilder::new().from_reader(body_text.as_bytes());
+            let mut result = Vec::new();
+
+            let headers = rdr.headers()?.clone();
+            println!("🔍 Debug: CSV headers: {:?}", headers);
+
+            let mut record_count = 0;
+            for record in rdr.records() {
+                let record = record?;
+                let mut obj = serde_json::Map::new();
+
+                for (i, field) in record.iter().enumerate() {
+                    if let Some(header) = headers.get(i) {
+                        obj.insert(header.to_string(), JsonValue::String(field.to_string()));
+                    }
+                }
+                result.push(JsonValue::Object(obj));
+                record_count += 1;
+
+                if record_count >= 10 {
+                    break;
+                } // Just parse first 10 for debugging
+            }
+
+            println!("🔍 Debug: Successfully parsed {} CSV records", record_count);
+            Ok(JsonValue::Array(result))
+        } else {
+            println!("🔍 Debug: Response doesn't look like CSV");
+            // Try to parse as JSON
+            match serde_json::from_str::<JsonValue>(&body_text) {
+                Ok(json) => {
+                    println!("🔍 Debug: Successfully parsed as JSON");
+                    Ok(json)
+                }
+                Err(e) => {
+                    println!("🔍 Debug: Failed to parse as JSON: {}", e);
+                    Ok(JsonValue::String(body_text))
+                }
+            }
+        }
     }
 }

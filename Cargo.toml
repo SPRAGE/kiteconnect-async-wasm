@@ -1,6 +1,6 @@
 [package]
 name = "kiteconnect-async-wasm"
-version = "1.0.8"
+version = "1.0.9"
 authors = ["SPRAGE <shauna.pai@gmail.com>"]
 description = "Modern async Rust client for KiteConnect REST APIs with WASM support. Clean, well-documented, and focused on REST-only operations."
 license = "Unlicense"
@@ -41,6 +41,7 @@ tokio = { version = "1.45.1", features = ["full"], optional = true }
 reqwest = { version = "0.12.20", features = ["json", "stream"] }
 sha2 = { version = "0.10.9", optional = true }
 csv = { version = "1.3.1", optional = true }
+flate2 = { version = "1.0", optional = true }
 
 # WASM-specific dependencies (controlled by 'wasm' feature)
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -75,7 +76,7 @@ wasm-bindgen-test = "0.3.50"
 default = ["native"]
 
 # Native platform support (tokio, native-tls, file I/O, etc.)
-native = ["dep:tokio", "dep:sha2", "dep:csv"]
+native = ["dep:tokio", "dep:sha2", "dep:csv", "dep:flate2"]
 
 # WASM platform support (web-sys, js-sys, browser APIs)
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys", "dep:gloo-utils", "dep:csv-core"]
