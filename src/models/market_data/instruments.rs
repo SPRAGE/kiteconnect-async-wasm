@@ -1,17 +1,50 @@
 use crate::models::common::{Exchange, InstrumentType, Segment};
 use chrono::{NaiveDate, NaiveTime};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// Custom deserializer to convert string to u32
+fn deserialize_string_to_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    s.parse::<u32>().map_err(serde::de::Error::custom)
+}
+
+/// Custom deserializer to convert string to f64
+fn deserialize_string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    s.parse::<f64>().map_err(serde::de::Error::custom)
+}
+
+/// Custom deserializer to convert optional string to Optional<NaiveDate>
+fn deserialize_optional_date<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    if s.is_empty() || s == "null" || s == "" {
+        Ok(None)
+    } else {
+        NaiveDate::parse_from_str(&s, "%Y-%m-%d")
+            .map(Some)
+            .map_err(serde::de::Error::custom)
+    }
+}
 
 /// Instrument data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instrument {
     /// Instrument token (unique identifier)
     #[serde(rename = "instrument_token")]
-    pub instrument_token: u32,
+    pub instrument_token: String,
 
     /// Exchange token
     #[serde(rename = "exchange_token")]
-    pub exchange_token: u32,
+    pub exchange_token: String,
 
     /// Trading symbol
     #[serde(rename = "tradingsymbol")]
@@ -21,21 +54,23 @@ pub struct Instrument {
     pub name: String,
 
     /// Last price
-    #[serde(rename = "last_price")]
+    #[serde(rename = "last_price", deserialize_with = "deserialize_string_to_f64")]
     pub last_price: f64,
 
     /// Expiry date (for derivatives, None for equity)
+    #[serde(deserialize_with = "deserialize_optional_date")]
     pub expiry: Option<NaiveDate>,
 
     /// Strike price (for options, 0.0 for others)
+    #[serde(deserialize_with = "deserialize_string_to_f64")]
     pub strike: f64,
 
     /// Tick size (minimum price movement)
-    #[serde(rename = "tick_size")]
+    #[serde(rename = "tick_size", deserialize_with = "deserialize_string_to_f64")]
     pub tick_size: f64,
 
     /// Lot size (minimum quantity for trading)
-    #[serde(rename = "lot_size")]
+    #[serde(rename = "lot_size", deserialize_with = "deserialize_string_to_u32")]
     pub lot_size: u32,
 
     /// Instrument type
