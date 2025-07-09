@@ -89,10 +89,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-kiteconnect-async-wasm = "1.0.8"
+kiteconnect-async-wasm = "1.0.9"
 
 # For WASM targets
-# kiteconnect-async-wasm = "1.0.8", features = ["wasm"] }
+# kiteconnect-async-wasm = "1.0.9", features = ["wasm"] }
 ```
 
 ### Basic Usage (Legacy API - Backward Compatible)
