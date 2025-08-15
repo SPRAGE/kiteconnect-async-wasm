@@ -352,6 +352,9 @@ use serde_json::Value as JsonValue;
 use crate::models::auth::MarginData;
 use crate::models::common::KiteResult;
 use crate::models::portfolio::{ConversionRequest, Holding, Position};
+use crate::models::orders::OrderMarginRequest;
+use crate::models::orders::{BasketMarginsData, OrderMarginResult};
+use crate::models::orders::{OrderChargesRequest, OrderChargesResult};
 
 use crate::connect::KiteConnect;
 
@@ -529,6 +532,76 @@ impl KiteConnect {
             .send_request_with_rate_limiting_and_retry(KiteEndpoint::Positions, &[], None, None)
             .await
             .map_err(|e| anyhow::anyhow!("Get positions failed: {:?}", e))?;
+        self.raise_or_return_json(resp).await
+    }
+
+    /// Calculate margins for a list of orders
+    ///
+    /// POST /margins/orders (JSON body)
+    pub async fn calculate_order_margins(
+        &self,
+        orders: &[OrderMarginRequest],
+        compact: bool,
+    ) -> Result<JsonValue> {
+        let query = if compact { Some(vec![("mode", "compact")]) } else { None };
+        let resp = self
+            .send_json_with_rate_limiting_and_retry(
+                KiteEndpoint::CalculateOrderMargins,
+                &[],
+                query,
+                &orders,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("Order margin calc failed: {:?}", e))?;
+        self.raise_or_return_json(resp).await
+    }
+
+    /// Calculate basket margins with optional consideration of positions
+    ///
+    /// POST /margins/basket (JSON body)
+    pub async fn calculate_basket_margins(
+         &self,
+         orders: &[OrderMarginRequest],
+         consider_positions: bool,
+         compact: bool,
+     ) -> Result<JsonValue> {
+        let mut query: Vec<(&str, &str)> = Vec::new();
+        if consider_positions {
+            query.push(("consider_positions", "true"));
+        }
+        if compact {
+            query.push(("mode", "compact"));
+        }
+        let query = if query.is_empty() { None } else { Some(query) };
+
+        let resp = self
+            .send_json_with_rate_limiting_and_retry(
+                KiteEndpoint::CalculateBasketMargins,
+                &[],
+                query,
+                &orders,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("Basket margin calc failed: {:?}", e))?;
+        self.raise_or_return_json(resp).await
+    }
+
+    /// Calculate order-wise charges (virtual contract note)
+    ///
+    /// POST /charges/orders (JSON body)
+    pub async fn calculate_order_charges(
+        &self,
+        orders: &[OrderChargesRequest],
+    ) -> Result<JsonValue> {
+        let resp = self
+            .send_json_with_rate_limiting_and_retry(
+                KiteEndpoint::CalculateOrderCharges,
+                &[],
+                None,
+                &orders,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("Order charges calc failed: {:?}", e))?;
         self.raise_or_return_json(resp).await
     }
 
@@ -743,5 +816,74 @@ impl KiteConnect {
 
         // Check if conversion was successful
         Ok(json_response.get("status").and_then(|v| v.as_str()) == Some("success"))
+    }
+
+    // === TYPED margin calculation helpers ===
+
+    /// Calculate margins for a list of orders (typed)
+    pub async fn calculate_order_margins_typed(
+        &self,
+        orders: &[OrderMarginRequest],
+        compact: bool,
+    ) -> KiteResult<Vec<OrderMarginResult>> {
+        let query = if compact { Some(vec![("mode", "compact")]) } else { None };
+        let resp = self
+            .send_json_with_rate_limiting_and_retry(
+                KiteEndpoint::CalculateOrderMargins,
+                &[],
+                query,
+                &orders,
+            )
+            .await?;
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        let data = json_response["data"].clone();
+        self.parse_response(data)
+    }
+
+    /// Calculate basket margins (typed)
+    pub async fn calculate_basket_margins_typed(
+        &self,
+        orders: &[OrderMarginRequest],
+        consider_positions: bool,
+        compact: bool,
+    ) -> KiteResult<BasketMarginsData> {
+        let mut query: Vec<(&str, &str)> = Vec::new();
+        if consider_positions {
+            query.push(("consider_positions", "true"));
+        }
+        if compact {
+            query.push(("mode", "compact"));
+        }
+        let query = if query.is_empty() { None } else { Some(query) };
+
+        let resp = self
+            .send_json_with_rate_limiting_and_retry(
+                KiteEndpoint::CalculateBasketMargins,
+                &[],
+                query,
+                &orders,
+            )
+            .await?;
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        let data = json_response["data"].clone();
+        self.parse_response(data)
+    }
+
+    /// Calculate order-wise charges (typed)
+    pub async fn calculate_order_charges_typed(
+        &self,
+        orders: &[OrderChargesRequest],
+    ) -> KiteResult<Vec<OrderChargesResult>> {
+        let resp = self
+            .send_json_with_rate_limiting_and_retry(
+                KiteEndpoint::CalculateOrderCharges,
+                &[],
+                None,
+                &orders,
+            )
+            .await?;
+        let json_response = self.raise_or_return_json_typed(resp).await?;
+        let data = json_response["data"].clone();
+        self.parse_response(data)
     }
 }

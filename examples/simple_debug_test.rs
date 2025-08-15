@@ -30,12 +30,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 Simple Instruments Debug Test");
     println!("=================================\n");
 
-    // Test 1: Use simplified instruments method
-    println!("🔄 Testing simplified instruments method...");
-    match client.instruments_simple(None).await {
+    // Test 1: Use official instruments method
+    println!("🔄 Testing instruments method...");
+    match client.instruments(None).await {
         Ok(instruments) => {
             if let Some(array) = instruments.as_array() {
-                println!("✅ Simple method returned {} instruments", array.len());
+                println!("✅ Method returned {} instruments", array.len());
                 
                 if !array.is_empty() {
                     println!("📄 First instrument:");
@@ -48,49 +48,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             } else {
-                println!("❌ Simple method returned non-array: {:?}", instruments);
+                println!("❌ Method returned non-array: {:?}", instruments);
             }
         }
         Err(e) => {
-            println!("❌ Simple method failed: {}", e);
+            println!("❌ Method failed: {}", e);
         }
     }
     println!();
 
     // Test 2: Compare with regular method
-    println!("🔄 Testing regular instruments method...");
+    println!("🔄 Testing instruments method again...");
     match client.instruments(None).await {
         Ok(instruments) => {
             if let Some(array) = instruments.as_array() {
-                println!("✅ Regular method returned {} instruments", array.len());
+                println!("✅ Method returned {} instruments", array.len());
             } else {
-                println!("❌ Regular method returned non-array: {:?}", instruments);
+                println!("❌ Method returned non-array: {:?}", instruments);
             }
         }
         Err(e) => {
-            println!("❌ Regular method failed: {}", e);
+            println!("❌ Method failed: {}", e);
         }
     }
     println!();
 
     // Test 3: Test NSE-specific
-    println!("🔄 Testing NSE-specific with simple method...");
-    match client.instruments_simple(Some("NSE")).await {
+    println!("🔄 Testing NSE-specific...");
+    match client.instruments(Some("NSE")).await {
         Ok(instruments) => {
             if let Some(array) = instruments.as_array() {
-                println!("✅ NSE simple method returned {} instruments", array.len());
+                println!("✅ NSE method returned {} instruments", array.len());
             } else {
-                println!("❌ NSE simple method returned non-array: {:?}", instruments);
+                println!("❌ NSE method returned non-array: {:?}", instruments);
             }
         }
         Err(e) => {
-            println!("❌ NSE simple method failed: {}", e);
+            println!("❌ NSE method failed: {}", e);
         }
     }
 
     println!("\n💡 Results Analysis:");
-    println!("   - If simple method works but regular doesn't, issue is in rate limiting/caching");
-    println!("   - If simple method also fails, issue is in authentication or API access");
+    println!("   - If method works intermittently, issue may be rate limiting/caching");
+    println!("   - If method consistently fails, issue is in authentication or API access");
     println!("   - If both return 0, check API permissions or contact Zerodha support");
 
     Ok(())

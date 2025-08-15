@@ -688,12 +688,12 @@ impl KiteConnect {
 
     /// Get the list of order history
     pub async fn order_history(&self, order_id: &str) -> Result<JsonValue> {
-        let params = vec![("order_id", order_id)];
+        // REST spec: GET /orders/{order_id}
         let resp = self
             .send_request_with_rate_limiting_and_retry(
                 KiteEndpoint::OrderHistory,
-                &[],
-                Some(params),
+                &[order_id],
+                None,
                 None,
             )
             .await
@@ -712,10 +712,11 @@ impl KiteConnect {
 
     /// Get all trades for a specific order
     pub async fn order_trades(&self, order_id: &str) -> Result<JsonValue> {
+        // REST spec: GET /orders/{order_id}/trades
         let resp = self
             .send_request_with_rate_limiting_and_retry(
                 KiteEndpoint::OrderTrades,
-                &[order_id],
+                &[order_id, "trades"],
                 None,
                 None,
             )
@@ -975,7 +976,7 @@ impl KiteConnect {
         let resp = self
             .send_request_with_rate_limiting_and_retry(
                 KiteEndpoint::OrderTrades,
-                &[order_id],
+                &[order_id, "trades"],
                 None,
                 None,
             )

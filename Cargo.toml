@@ -1,6 +1,6 @@
 [package]
 name = "kiteconnect-async-wasm"
-version = "1.0.9"
+version = "1.0.10"
 authors = ["SPRAGE <shauna.pai@gmail.com>"]
 description = "Modern async Rust client for KiteConnect REST APIs with WASM support. Clean, well-documented, and focused on REST-only operations."
 license = "Unlicense"
@@ -67,6 +67,7 @@ mockito = "1.7.0"
 tokio-test = "0.4"
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 env_logger = "0.10"
+flate2 = "1.0"
 
 # WASM test dependencies
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]

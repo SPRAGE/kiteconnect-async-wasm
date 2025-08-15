@@ -29,7 +29,7 @@
 //! // ... user completes login and returns request_token ...
 //!
 //! let session = client.generate_session("request_token", "api_secret").await?;
-//!
+//! 
 //! // Portfolio operations
 //! let holdings = client.holdings().await?;
 //! let positions = client.positions().await?;
@@ -664,6 +664,89 @@ impl KiteConnect {
         // Use existing retry logic
         self.send_request_with_retry(url, config.method.as_str(), data)
             .await
+    }
+
+    /// Send JSON request body with rate limiting and retry logic
+    pub(crate) async fn send_json_with_rate_limiting_and_retry<T: serde::Serialize + ?Sized>(
+        &self,
+        endpoint: KiteEndpoint,
+        path_segments: &[&str],
+        query_params: Option<Vec<(&str, &str)>>,
+        json_body: &T,
+    ) -> KiteResult<reqwest::Response> {
+        // Apply rate limiting
+        self.rate_limiter.wait_for_request(&endpoint).await;
+
+        // Build URL with endpoint configuration
+        let config = endpoint.config();
+        let full_path = if path_segments.is_empty() {
+            config.path.to_string()
+        } else {
+            format!("{}/{}", config.path, path_segments.join("/"))
+        };
+
+        let url = self.build_url(&full_path, query_params);
+
+        // Prepare headers
+        use reqwest::header::{HeaderMap, AUTHORIZATION, USER_AGENT, CONTENT_TYPE};
+        let mut headers = HeaderMap::new();
+        headers.insert("XKiteVersion", "3".parse().unwrap());
+        headers.insert(
+            AUTHORIZATION,
+            format!("token {}:{}", self.api_key, self.access_token)
+                .parse()
+                .unwrap(),
+        );
+        headers.insert(USER_AGENT, "Rust".parse().unwrap());
+        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+
+        // Use retry logic manually for JSON since send_request uses form encoding
+        let mut last_error = None;
+        for attempt in 0..=self.retry_config.max_retries {
+            let resp_res = self
+                .client
+                .post(url.clone())
+                .headers(headers.clone())
+                .json(json_body)
+                .send()
+                .await;
+
+            match resp_res {
+                Ok(resp) => {
+                    if resp.status().is_server_error() || resp.status() == 429 {
+                        let status = resp.status().as_u16().to_string();
+                        let error_text = resp.text().await.unwrap_or_default();
+                        let error = KiteError::Api {
+                            status,
+                            message: error_text,
+                            error_type: Some("ServerError".to_string()),
+                        };
+                        if attempt < self.retry_config.max_retries && self.should_retry(&error) {
+                            last_error = Some(error);
+                            let delay = self.calculate_retry_delay(attempt);
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        } else {
+                            return Err(error);
+                        }
+                    }
+                    return Ok(resp);
+                }
+                Err(e) => {
+                    let ke = KiteError::Http(e);
+                    if attempt < self.retry_config.max_retries && self.should_retry(&ke) {
+                        last_error = Some(ke);
+                        let delay = self.calculate_retry_delay(attempt);
+                        tokio::time::sleep(delay).await;
+                        continue;
+                    } else {
+                        return Err(ke);
+                    }
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| KiteError::General("All retry attempts failed".into())))
     }
 }
 

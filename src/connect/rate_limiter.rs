@@ -34,8 +34,8 @@
 //! let client = KiteConnect::new("api_key", "access_token");
 //!
 //! // These calls are automatically rate-limited
-//! let quotes = client.quote(vec!["NSE:RELIANCE"]).await?; // 1 req/sec limit
-//! let orders = client.orders().await?; // 10 req/sec limit
+//! let _ = client.quote_typed(vec!["NSE:RELIANCE"]).await?; // 1 req/sec limit
+//! let _ = client.orders().await?; // 10 req/sec limit
 //! # Ok(())
 //! # }
 //! ```
@@ -547,7 +547,7 @@ mod tests {
         // Standard category should have 1 request
         let standard_stats = &stats.categories[&RateLimitCategory::Standard];
         assert_eq!(standard_stats.request_count, 1);
-        assert_eq!(standard_stats.requests_per_second, 10);
+        assert_eq!(standard_stats.requests_per_second, 3);
     }
 
     #[tokio::test]

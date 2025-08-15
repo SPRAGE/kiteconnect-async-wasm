@@ -70,7 +70,6 @@
 //!
 //! ### Market Information
 //! - [`trigger_range()`](KiteConnect::trigger_range) - Get trigger range for instruments
-//! - [`instruments_margins()`](KiteConnect::instruments_margins) - Get margin requirements
 //!
 //! ## Usage Examples
 //!
@@ -82,12 +81,8 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = KiteConnect::new("api_key", "access_token");
 //!
-//! // Get real-time quote (legacy API)
-//! let quote = client.quote(vec!["NSE:RELIANCE", "BSE:SENSEX"]).await?;
-//! println!("Quote data: {}", quote);
-//!
 //! // Get real-time quote (typed API - recommended)
-//! let quotes = client.quote_typed(vec!["NSE:RELIANCE"]).await?;
+//! let quotes = client.quote_typed(vec!["NSE:RELIANCE", "BSE:SENSEX"]).await?;
 //! for quote in quotes {
 //!     println!("{}: ₹{:.2} ({}{})",
 //!         quote.trading_symbol,
@@ -281,7 +276,6 @@ use csv::ReaderBuilder;
 
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use crate::connect::utils::parse_csv_with_core;
-use crate::connect::utils::RequestHandler;
 use crate::connect::KiteConnect;
 
 // Import typed models for dual API support
@@ -295,22 +289,27 @@ impl KiteConnect {
     // === LEGACY API METHODS (JSON responses) ===
 
     /// Get the trigger range for a list of instruments
+    ///
+    /// Retrieves the valid trigger price range for placing stop-loss type orders.
+    ///
+    /// - REST: GET /instruments/trigger_range/:transaction_type?i=EXCHANGE:TRADINGSYMBOL&i=...
+    /// - `transaction_type` must be one of: "BUY" or "SELL"
+    /// - Instruments are passed as repeated `i` query params (e.g., `i=NSE:INFY`)
     pub async fn trigger_range(
         &self,
         transaction_type: &str,
         instruments: Vec<&str>,
     ) -> Result<JsonValue> {
+        // REST spec: transaction_type as path segment; instruments as repeated 'i' query params
         let mut params: Vec<(&str, &str)> = Vec::new();
-        params.push(("transaction_type", transaction_type));
-
         for instrument in instruments {
-            params.push(("instruments", instrument));
+            params.push(("i", instrument));
         }
 
         let resp = self
             .send_request_with_rate_limiting_and_retry(
                 KiteEndpoint::TriggerRange,
-                &[],
+                &[transaction_type],
                 Some(params),
                 None,
             )
@@ -319,266 +318,21 @@ impl KiteConnect {
         self.raise_or_return_json(resp).await
     }
 
-    /// Get instruments list
-    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-    pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
-        // Check cache first if enabled
-        if let Some(ref cache_config) = self.cache_config {
-            if cache_config.enable_instruments_cache && exchange.is_none() {
-                // Only cache the full instruments list, not exchange-specific ones
-                if let Ok(cache_guard) = self.response_cache.lock() {
-                    if let Some(ref cache) = *cache_guard {
-                        if let Some(cached_data) = cache.get_instruments() {
-                            #[cfg(feature = "debug")]
-                            log::debug!("Returning cached instruments data");
-                            return Ok(cached_data);
-                        }
-                    }
-                }
-            }
-        }
-
-        let endpoint = KiteEndpoint::Instruments;
-
-        let path_segments = if let Some(exchange) = exchange {
-            vec![exchange]
-        } else {
-            vec![]
-        };
-
-        #[cfg(feature = "debug")]
-        log::debug!(
-            "Requesting instruments: endpoint={:?}, path_segments={:?}",
-            endpoint,
-            path_segments
-        );
-
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
-
-        #[cfg(feature = "debug")]
-        log::debug!("Received response with status: {}", resp.status());
-
-        // Check if response is gzipped and handle accordingly
-        let content_encoding = resp
-            .headers()
-            .get("content-encoding")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string();
-
-        let body_text = if content_encoding.contains("gzip") {
-            #[cfg(feature = "debug")]
-            log::debug!("Decompressing gzipped response");
-
-            let body_bytes = resp.bytes().await?;
-            use std::io::Read;
-            let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
-            let mut decompressed = String::new();
-            decoder.read_to_string(&mut decompressed)?;
-            decompressed
-        } else {
-            resp.text().await?
-        };
-
-        #[cfg(feature = "debug")]
-        log::debug!(
-            "Decompressed body length: {} bytes, first 200 chars: {}",
-            body_text.len(),
-            &body_text.chars().take(200).collect::<String>()
-        );
-
-        // Parse CSV response
-        let mut rdr = ReaderBuilder::new().from_reader(body_text.as_bytes());
-        let mut result = Vec::new();
-
-        let headers = rdr.headers()?.clone();
-        #[cfg(feature = "debug")]
-        log::debug!("CSV headers: {:?}", headers);
-
-        let mut _record_count = 0;
-        for record in rdr.records() {
-            let record = record?;
-            let mut obj = serde_json::Map::new();
-
-            for (i, field) in record.iter().enumerate() {
-                if let Some(header) = headers.get(i) {
-                    obj.insert(header.to_string(), JsonValue::String(field.to_string()));
-                }
-            }
-            result.push(JsonValue::Object(obj));
-            _record_count += 1;
-        }
-
-        #[cfg(feature = "debug")]
-        log::debug!("Parsed {} records from CSV", _record_count);
-
-        let result_json = JsonValue::Array(result);
-
-        // Cache the result if enabled and it's the full instruments list
-        if let Some(ref cache_config) = self.cache_config {
-            if cache_config.enable_instruments_cache && exchange.is_none() {
-                if let Ok(mut cache_guard) = self.response_cache.lock() {
-                    if let Some(ref mut cache) = *cache_guard {
-                        cache.set_instruments(result_json.clone());
-                    }
-                }
-            }
-        }
-
-        Ok(result_json)
-    }
-
-    /// Get instruments list (WASM version - now parses CSV using csv-core)
-    #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-    pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
-        // Check cache first if enabled
-        if let Some(ref cache_config) = self.cache_config {
-            if cache_config.enable_instruments_cache && exchange.is_none() {
-                // Only cache the full instruments list, not exchange-specific ones
-                if let Ok(cache_guard) = self.response_cache.lock() {
-                    if let Some(ref cache) = *cache_guard {
-                        if let Some(cached_data) = cache.get_instruments() {
-                            return Ok(cached_data);
-                        }
-                    }
-                }
-            }
-        }
-
-        let endpoint = KiteEndpoint::Instruments;
-
-        let path_segments = if let Some(exchange) = exchange {
-            vec![exchange]
-        } else {
-            vec![]
-        };
-
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
-
-        // In WASM, browsers typically handle gzip decompression automatically
-        // But let's check the response format
-        let body = resp.text().await?;
-
-        // Debug: Check if the response looks like gzipped binary data
-        if body.len() > 0 && !body.starts_with("instrument_token") {
-            // If it doesn't start with expected CSV header, it might be binary data
-            // In WASM, we might need different handling
-            #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-            {
-                // For now, log the issue
-                web_sys::console::log_1(
-                    &format!("WASM: Unexpected response format, length: {}", body.len()).into(),
-                );
-                web_sys::console::log_1(
-                    &format!(
-                        "WASM: First 100 chars: {}",
-                        &body.chars().take(100).collect::<String>()
-                    )
-                    .into(),
-                );
-            }
-        }
-
-        // Parse CSV using csv-core for WASM compatibility
-        let result = parse_csv_with_core(&body)?;
-
-        // Cache the result if enabled and it's the full instruments list
-        if let Some(ref cache_config) = self.cache_config {
-            if cache_config.enable_instruments_cache && exchange.is_none() {
-                if let Ok(mut cache_guard) = self.response_cache.lock() {
-                    if let Some(ref mut cache) = *cache_guard {
-                        cache.set_instruments(result.clone());
-                    }
-                }
-            }
-        }
-
-        Ok(result)
-    }
-
-    /// Get mutual fund instruments list
-    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-    pub async fn mf_instruments(&self) -> Result<JsonValue> {
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(KiteEndpoint::MFInstruments, &[], None, None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Get MF instruments failed: {:?}", e))?;
-        let body = resp.text().await?;
-
-        // Parse CSV response
-        let mut rdr = ReaderBuilder::new().from_reader(body.as_bytes());
-        let mut result = Vec::new();
-
-        let headers = rdr.headers()?.clone();
-        for record in rdr.records() {
-            let record = record?;
-            let mut obj = serde_json::Map::new();
-
-            for (i, field) in record.iter().enumerate() {
-                if let Some(header) = headers.get(i) {
-                    obj.insert(header.to_string(), JsonValue::String(field.to_string()));
-                }
-            }
-            result.push(JsonValue::Object(obj));
-        }
-
-        Ok(JsonValue::Array(result))
-    }
-
-    /// Get mutual fund instruments list (WASM version - now parses CSV using csv-core)
-    #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-    pub async fn mf_instruments(&self) -> Result<JsonValue> {
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(KiteEndpoint::MFInstruments, &[], None, None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Get MF instruments failed: {:?}", e))?;
-        let body = resp.text().await?;
-
-        // Parse CSV using csv-core for WASM compatibility
-        parse_csv_with_core(&body)
-    }
-
-    /// Get instruments list (fallback when no platform features are enabled)
-    #[cfg(not(any(
-        all(feature = "native", not(target_arch = "wasm32")),
-        all(feature = "wasm", target_arch = "wasm32")
-    )))]
-    pub async fn instruments(&self, _exchange: Option<&str>) -> Result<JsonValue> {
-        Err(anyhow!(
-            "Instruments functionality requires either 'native' or 'wasm' feature to be enabled"
-        ))
-    }
-
-    /// Get mutual fund instruments list (fallback when no platform features are enabled)
-    #[cfg(not(any(
-        all(feature = "native", not(target_arch = "wasm32")),
-        all(feature = "wasm", target_arch = "wasm32")
-    )))]
-    pub async fn mf_instruments(&self) -> Result<JsonValue> {
-        Err(anyhow!(
-            "MF instruments functionality requires either 'native' or 'wasm' feature to be enabled"
-        ))
-    }
-
     /// Retrieves historical candlestick data for an instrument
     ///
     /// Returns historical OHLCV (Open, High, Low, Close, Volume) data for a given
-    /// instrument within the specified date range and interval. This is useful for
-    /// backtesting, analysis, and charting applications.
+    /// instrument within the specified date range and interval.
     ///
     /// # Arguments
     ///
     /// * `instrument_token` - The instrument token (numeric ID) of the instrument
-    /// * `from_date` - Start date in YYYY-MM-DD format
-    /// * `to_date` - End date in YYYY-MM-DD format  
+    /// * `from_date` - Start datetime in `yyyy-mm-dd hh:mm:ss` format (IST)
+    /// * `to_date` - End datetime in `yyyy-mm-dd hh:mm:ss` format (IST)
     /// * `interval` - Time interval for candlesticks ("minute", "day", "3minute", "5minute", "10minute", "15minute", "30minute", "60minute")
-    /// * `continuous` - Whether to include pre-market and post-market data ("1" for true, "0" for false)
+    /// * `continuous` - "1" to enable continuous futures series stitching, "0" to disable (only for NFO/MCX futures)
+    ///
+    /// Note: This legacy method does not support the optional `oi` parameter. Use
+    /// `historical_data_typed()` with `HistoricalDataRequest::with_oi(true)` to include OI.
     ///
     /// # Returns
     ///
@@ -611,32 +365,22 @@ impl KiteConnect {
     ///
     /// // Get daily data for RELIANCE for the last month
     /// let historical_data = client.historical_data(
-    ///     "738561",           // RELIANCE instrument token
-    ///     "2023-11-01",       // From date
-    ///     "2023-11-30",       // To date
-    ///     "day",              // Daily interval
-    ///     "0"                 // No continuous data
+    ///     "738561",                 // RELIANCE instrument token
+    ///     "2023-11-01 00:00:00",   // From datetime (yyyy-mm-dd hh:mm:ss)
+    ///     "2023-11-30 23:59:59",   // To datetime (yyyy-mm-dd hh:mm:ss)
+    ///     "day",                    // Daily interval
+    ///     "0"                       // No continuous data
     /// ).await?;
     ///
     /// println!("Historical data: {:?}", historical_data);
-    ///
-    /// // Access candlestick data
-    /// if let Some(data) = historical_data["data"].as_array() {
-    ///     for candle in data {
-    ///         println!("Date: {}, Close: {}, Volume: {}",
-    ///             candle["date"], candle["close"], candle["volume"]);
-    ///     }
-    /// }
     /// # Ok(())
     /// # }
     /// ```
     ///
     /// # Notes
     ///
-    /// - Historical data is subject to availability and may have limitations based on your subscription
-    /// - Large date ranges may be split into multiple requests automatically
-    /// - Intraday data older than a certain period may not be available
-    /// - Weekend and holiday data will not be included in the response
+    /// - `continuous=1` stitches expired futures into a continuous series (day candles only)
+    /// - For OI data, use the typed API: `historical_data_typed()` with `.with_oi(true)`
     pub async fn historical_data(
         &self,
         instrument_token: &str,
@@ -660,168 +404,6 @@ impl KiteConnect {
             )
             .await
             .map_err(|e| anyhow::anyhow!("Get historical data failed: {:?}", e))?;
-
-        self.raise_or_return_json(resp).await
-    }
-
-    /// Retrieve quote and market depth for list of instruments
-    ///
-    /// Gets real-time quote data including bid/ask prices, market depth,
-    /// and other market data for the specified instruments.
-    ///
-    /// # Arguments
-    ///
-    /// * `instruments` - List of instrument identifiers (exchange:tradingsymbol or instrument_token)
-    ///
-    /// # Returns
-    ///
-    /// A `Result<JsonValue>` containing quote data with fields like:
-    /// - `last_price` - Last traded price
-    /// - `ohlc` - Open, High, Low, Close data
-    /// - `market_depth` - Bid/Ask data with quantities
-    /// - `volume` - Trading volume
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use kiteconnect_async_wasm::connect::KiteConnect;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = KiteConnect::new("api_key", "access_token");
-    ///
-    /// let instruments = vec!["NSE:RELIANCE", "BSE:SENSEX"];
-    /// let quotes = client.quote(instruments).await?;
-    ///
-    /// println!("Quotes: {:?}", quotes);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn quote(&self, instruments: Vec<&str>) -> Result<JsonValue> {
-        let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(KiteEndpoint::Quote, &[], Some(params), None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Get quote failed: {:?}", e))?;
-        self.raise_or_return_json(resp).await
-    }
-
-    /// Retrieve OHLC (Open, High, Low, Close) data for instruments
-    ///
-    /// Gets OHLC data for the current trading day for the specified instruments.
-    ///
-    /// # Arguments
-    ///
-    /// * `instruments` - List of instrument identifiers
-    ///
-    /// # Returns
-    ///
-    /// A `Result<JsonValue>` containing OHLC data
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use kiteconnect_async_wasm::connect::KiteConnect;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = KiteConnect::new("api_key", "access_token");
-    ///
-    /// let instruments = vec!["NSE:RELIANCE", "NSE:TCS"];
-    /// let ohlc_data = client.ohlc(instruments).await?;
-    ///
-    /// println!("OHLC Data: {:?}", ohlc_data);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn ohlc(&self, instruments: Vec<&str>) -> Result<JsonValue> {
-        let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
-
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(KiteEndpoint::OHLC, &[], Some(params), None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to get OHLC data: {}", e))?;
-
-        self.raise_or_return_json(resp).await
-    }
-
-    /// Retrieve Last Traded Price (LTP) for instruments
-    ///
-    /// Gets the last traded price for the specified instruments. This is a
-    /// lightweight alternative to the full quote API.
-    ///
-    /// # Arguments
-    ///
-    /// * `instruments` - List of instrument identifiers
-    ///
-    /// # Returns
-    ///
-    /// A `Result<JsonValue>` containing last traded prices
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use kiteconnect_async_wasm::connect::KiteConnect;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = KiteConnect::new("api_key", "access_token");
-    ///
-    /// let instruments = vec!["NSE:RELIANCE", "NSE:TCS"];
-    /// let ltp_data = client.ltp(instruments).await?;
-    ///
-    /// println!("LTP Data: {:?}", ltp_data);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn ltp(&self, instruments: Vec<&str>) -> Result<JsonValue> {
-        let params: Vec<_> = instruments.into_iter().map(|i| ("i", i)).collect();
-
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(KiteEndpoint::LTP, &[], Some(params), None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to get LTP data: {}", e))?;
-
-        self.raise_or_return_json(resp).await
-    }
-
-    /// Retrieve margin requirements for specific trading segments
-    ///
-    /// Gets margin requirements and charges for different trading segments
-    /// like equity, commodity, currency, etc.
-    ///
-    /// # Arguments
-    ///
-    /// * `segment` - Trading segment ("equity", "commodity", "currency")
-    ///
-    /// # Returns
-    ///
-    /// A `Result<JsonValue>` containing margin requirements data
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use kiteconnect_async_wasm::connect::KiteConnect;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = KiteConnect::new("api_key", "access_token");
-    ///
-    /// let equity_margins = client.instruments_margins("equity").await?;
-    /// println!("Equity margins: {:?}", equity_margins);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn instruments_margins(&self, segment: &str) -> Result<JsonValue> {
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(
-                KiteEndpoint::MarketMargins,
-                &[segment],
-                None,
-                None,
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to get instrument margins: {}", e))?;
 
         self.raise_or_return_json(resp).await
     }
@@ -1112,10 +694,6 @@ impl KiteConnect {
     ///         println!("  Days to expiry: {:?}", instrument.days_to_expiry());
     ///     }
     /// }
-    ///
-    /// // Get derivatives instruments using type-safe enum
-    /// let nfo_instruments = client.instruments_typed(Some(Exchange::NFO)).await?;
-    /// println!("NFO derivatives: {}", nfo_instruments.len());
     /// # Ok(())
     /// # }
     /// ```
@@ -1142,145 +720,103 @@ impl KiteConnect {
         let exchange_str = exchange.as_ref().map(|e| e.to_string());
         let exchange_str_ref = exchange_str.as_ref().map(|s| s.as_str());
 
-        // Get the JSON response using existing method
-        let json_response = self
-            .instruments(exchange_str_ref)
+        // Build endpoint and path segments
+        let endpoint = KiteEndpoint::Instruments;
+        let path_segments: Vec<&str> = match exchange_str_ref {
+            Some(ex) => vec![ex],
+            None => vec![],
+        };
+
+        let resp = self
+            .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
             .await
             .map_err(|e| KiteError::general(format!("Failed to get instruments: {}", e)))?;
+
+        // Parse CSV to JSON array (platform-specific)
+        #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+        let json_response = {
+            // Check if response is gzipped and handle accordingly
+            let content_encoding = resp
+                .headers()
+                .get("content-encoding")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("")
+                .to_string();
+
+            let body_text = if content_encoding.contains("gzip") {
+                let body_bytes = resp.bytes().await.map_err(KiteError::Http)?;
+                use std::io::Read;
+                let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
+                let mut decompressed = String::new();
+                decoder
+                    .read_to_string(&mut decompressed)
+                    .map_err(|e| KiteError::general(format!("Decompression failed: {}", e)))?;
+                decompressed
+            } else {
+                resp.text().await.map_err(KiteError::Http)?
+            };
+
+            // Parse CSV response
+            let mut rdr = ReaderBuilder::new().from_reader(body_text.as_bytes());
+            let mut result = Vec::new();
+
+            let headers = rdr
+                .headers()
+                .map_err(|e| KiteError::general(format!("CSV header error: {}", e)))?
+                .clone();
+
+            for record in rdr.records() {
+                let record = record
+                    .map_err(|e| KiteError::general(format!("CSV record error: {}", e)))?;
+                let mut obj = serde_json::Map::new();
+                for (i, field) in record.iter().enumerate() {
+                    if let Some(header) = headers.get(i) {
+                        let key = header.trim();
+                        obj.insert(key.to_string(), JsonValue::String(field.to_string()));
+                    }
+                }
+                result.push(JsonValue::Object(obj));
+            }
+
+            JsonValue::Array(result)
+        };
+
+        #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+        let json_response = {
+            let body = resp.text().await.map_err(KiteError::Http)?;
+            parse_csv_with_core(&body).map_err(|e| KiteError::general(format!("CSV parse error: {}", e)))?
+        };
+
+        #[cfg(not(any(
+            all(feature = "native", not(target_arch = "wasm32")),
+            all(feature = "wasm", target_arch = "wasm32")
+        )))]
+        {
+            return Err(KiteError::general(
+                "Instruments functionality requires either 'native' or 'wasm' feature to be enabled"
+                    .to_string(),
+            ));
+        }
 
         // Parse the JSON array into typed instruments
         if let Some(instruments_array) = json_response.as_array() {
             let mut instruments = Vec::new();
-
             for instrument_json in instruments_array {
-                // Convert JSON object to Instrument struct
                 match serde_json::from_value::<crate::models::market_data::Instrument>(
                     instrument_json.clone(),
                 ) {
                     Ok(instrument) => instruments.push(instrument),
-                    Err(e) => {
-                        // Log the error but continue processing other instruments
+                    Err(_e) => {
                         #[cfg(feature = "debug")]
-                        log::warn!(
-                            "Failed to parse instrument: {:?} - Error: {}",
-                            instrument_json,
-                            e
-                        );
-
-                        // For now, continue with other instruments rather than failing completely
+                        log::warn!("Failed to parse instrument: {:?}", instrument_json);
                         continue;
                     }
                 }
             }
-
             Ok(instruments)
         } else {
             Err(KiteError::general(
                 "Invalid instruments response format".to_string(),
-            ))
-        }
-    }
-
-    /// Debug version of instruments_typed that shows JSON before conversion
-    pub async fn instruments_typed_debug(
-        &self,
-        exchange: Option<Exchange>,
-    ) -> KiteResult<Vec<crate::models::market_data::Instrument>> {
-        // Convert Exchange enum to string for the underlying API call
-        let exchange_str = exchange.as_ref().map(|e| e.to_string());
-        let exchange_str_ref = exchange_str.as_ref().map(|s| s.as_str());
-
-        println!("🔍 Typed Debug: Getting JSON response first...");
-
-        // Get the JSON response using existing method
-        let json_response = self
-            .instruments(exchange_str_ref)
-            .await
-            .map_err(|e| KiteError::general(format!("Failed to get instruments: {}", e)))?;
-
-        println!(
-            "🔍 Typed Debug: JSON response type: {:?}",
-            if json_response.is_array() {
-                "Array"
-            } else if json_response.is_object() {
-                "Object"
-            } else {
-                "Other"
-            }
-        );
-
-        // Parse the JSON array into typed instruments
-        if let Some(instruments_array) = json_response.as_array() {
-            println!(
-                "🔍 Typed Debug: Found {} instruments in JSON array",
-                instruments_array.len()
-            );
-
-            if instruments_array.is_empty() {
-                println!("🔍 Typed Debug: Array is empty - returning empty vector");
-                return Ok(Vec::new());
-            }
-
-            // Show first few JSON objects for debugging
-            println!("🔍 Typed Debug: First 3 JSON instruments:");
-            for (i, instrument_json) in instruments_array.iter().take(3).enumerate() {
-                println!(
-                    "  {}. {}",
-                    i + 1,
-                    serde_json::to_string_pretty(instrument_json)?
-                );
-            }
-
-            let mut instruments = Vec::new();
-            let mut parse_errors = 0;
-
-            for (index, instrument_json) in instruments_array.iter().enumerate() {
-                // Convert JSON object to Instrument struct
-                match serde_json::from_value::<crate::models::market_data::Instrument>(
-                    instrument_json.clone(),
-                ) {
-                    Ok(instrument) => {
-                        instruments.push(instrument);
-                        if index < 5 {
-                            println!(
-                                "🔍 Typed Debug: Successfully parsed instrument {}: {}",
-                                index + 1,
-                                instruments.last().unwrap().trading_symbol
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        parse_errors += 1;
-                        if parse_errors <= 5 {
-                            println!(
-                                "🔍 Typed Debug: Failed to parse instrument {}: {}",
-                                index + 1,
-                                e
-                            );
-                            println!(
-                                "🔍 Typed Debug: JSON was: {}",
-                                serde_json::to_string_pretty(instrument_json)?
-                            );
-                        }
-                        // Continue with other instruments rather than failing completely
-                        continue;
-                    }
-                }
-            }
-
-            println!(
-                "🔍 Typed Debug: Successfully parsed {} instruments, {} parse errors",
-                instruments.len(),
-                parse_errors
-            );
-            Ok(instruments)
-        } else {
-            println!(
-                "🔍 Typed Debug: JSON response is not an array: {:?}",
-                json_response
-            );
-            Err(KiteError::general(
-                "Invalid instruments response format - not an array".to_string(),
             ))
         }
     }
@@ -1326,7 +862,7 @@ impl KiteConnect {
     ///     println!("  AMC: {}", fund.amc);
     ///     println!("  Min SIP: ₹{:.2}", fund.minimum_additional_purchase_amount);
     ///     println!("  Settlement: {} days", fund.settlement_days());
-    ///     println!("  Type: {} | Plan: {}", fund.fund_type, fund.plan);
+    ///     println!("  Type: {:?} | Plan: {:?}", fund.fund_type, fund.plan);
     /// }
     /// # Ok(())
     /// # }
@@ -1345,35 +881,71 @@ impl KiteConnect {
     /// - Efficient parsing of large CSV responses
     /// - Memory usage scales with number of available funds
     pub async fn mf_instruments_typed(&self) -> KiteResult<Vec<MFInstrument>> {
-        // Get the JSON response using existing method
-        let json_response = self
-            .mf_instruments()
+        // Build endpoint
+        let endpoint = KiteEndpoint::MFInstruments;
+        let resp = self
+            .send_request_with_rate_limiting_and_retry(endpoint, &[], None, None)
             .await
             .map_err(|e| KiteError::general(format!("Failed to get MF instruments: {}", e)))?;
+
+        // Parse CSV to JSON array (platform-specific)
+        #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+        let json_response = {
+            let body = resp.text().await.map_err(KiteError::Http)?;
+            let mut rdr = ReaderBuilder::new().from_reader(body.as_bytes());
+            let mut result = Vec::new();
+
+            let headers = rdr
+                .headers()
+                .map_err(|e| KiteError::general(format!("CSV header error: {}", e)))?
+                .clone();
+
+            for record in rdr.records() {
+                let record = record
+                    .map_err(|e| KiteError::general(format!("CSV record error: {}", e)))?;
+                let mut obj = serde_json::Map::new();
+                for (i, field) in record.iter().enumerate() {
+                    if let Some(header) = headers.get(i) {
+                        let key = header.trim();
+                        obj.insert(key.to_string(), JsonValue::String(field.to_string()));
+                    }
+                }
+                result.push(JsonValue::Object(obj));
+            }
+
+            JsonValue::Array(result)
+        };
+
+        #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+        let json_response = {
+            let body = resp.text().await.map_err(KiteError::Http)?;
+            parse_csv_with_core(&body).map_err(|e| KiteError::general(format!("CSV parse error: {}", e)))?
+        };
+
+        #[cfg(not(any(
+            all(feature = "native", not(target_arch = "wasm32")),
+            all(feature = "wasm", target_arch = "wasm32")
+        )))]
+        {
+            return Err(KiteError::general(
+                "MF instruments functionality requires either 'native' or 'wasm' feature to be enabled"
+                    .to_string(),
+            ));
+        }
 
         // Parse the JSON array into typed MF instruments
         if let Some(instruments_array) = json_response.as_array() {
             let mut instruments = Vec::new();
-
             for instrument_json in instruments_array {
-                // Convert JSON object to MFInstrument struct
                 match serde_json::from_value::<MFInstrument>(instrument_json.clone()) {
                     Ok(instrument) => instruments.push(instrument),
-                    Err(e) => {
-                        // Log the error but continue processing other instruments
+                    Err(_e) => {
                         #[cfg(feature = "debug")]
-                        log::warn!(
-                            "Failed to parse MF instrument: {:?} - Error: {}",
-                            instrument_json,
-                            e
-                        );
-
-                        // For now, continue with other instruments rather than failing completely
+                        log::warn!("Failed to parse MF instrument: {:?}", instrument_json);
                         continue;
                     }
                 }
             }
-
             Ok(instruments)
         } else {
             Err(KiteError::general(
@@ -1564,302 +1136,195 @@ impl KiteConnect {
         })
     }
 
-    /// Simple instruments method for debugging - bypasses rate limiting and caching
-    pub async fn instruments_simple(&self, exchange: Option<&str>) -> Result<JsonValue> {
-        let path = if let Some(exchange) = exchange {
-            format!("/instruments/{}", exchange)
-        } else {
-            "/instruments".to_string()
-        };
-
-        let url = self.build_url(&path, None);
-
-        let resp = self.send_request(url, "GET", None).await?;
-
-        if !resp.status().is_success() {
-            let error_text = resp.text().await?;
-            return Err(anyhow::anyhow!("API Error: {}", error_text));
-        }
-
-        let body = resp.text().await?;
-
-        if body.is_empty() {
-            return Err(anyhow::anyhow!("Empty response body"));
-        }
-
-        // Parse CSV response
-        let mut rdr = csv::ReaderBuilder::new().from_reader(body.as_bytes());
-        let mut result = Vec::new();
-
-        let headers = rdr.headers()?.clone();
-        for record in rdr.records() {
-            let record = record?;
-            let mut obj = serde_json::Map::new();
-
-            for (i, field) in record.iter().enumerate() {
-                if let Some(header) = headers.get(i) {
-                    obj.insert(header.to_string(), JsonValue::String(field.to_string()));
-                }
-            }
-            result.push(JsonValue::Object(obj));
-        }
-
-        Ok(JsonValue::Array(result))
-    }
-
-    /// Get instruments list with gzip decompression support
-    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-    pub async fn instruments_with_gzip(&self, exchange: Option<&str>) -> Result<JsonValue> {
-        // Check cache first if enabled
-        if let Some(ref cache_config) = self.cache_config {
-            if cache_config.enable_instruments_cache && exchange.is_none() {
-                // Only cache the full instruments list, not exchange-specific ones
-                if let Ok(cache_guard) = self.response_cache.lock() {
-                    if let Some(ref cache) = *cache_guard {
-                        if let Some(cached_data) = cache.get_instruments() {
-                            #[cfg(feature = "debug")]
-                            log::debug!("Returning cached instruments data");
-                            return Ok(cached_data);
+    /// Get the complete instruments list (legacy JSON API)
+    ///
+    /// - REST: GET /instruments or /instruments/:exchange
+    /// - Returns a JSON array parsed from CSV (fields as strings)
+    /// - When `exchange` is None and cache is enabled, response is cached for 1 hour
+    pub async fn instruments(&self, exchange: Option<&str>) -> Result<JsonValue> {
+        // Serve from cache when enabled and no exchange filter
+        if exchange.is_none() {
+            if let Some(cache_cfg) = &self.cache_config {
+                if cache_cfg.enable_instruments_cache {
+                    if let Ok(mut cache_guard) = self.response_cache.lock() {
+                        if cache_guard.is_none() {
+                            *cache_guard = Some(crate::connect::ResponseCache::new(cache_cfg.cache_ttl_minutes));
+                        }
+                        let cache_opt: &Option<crate::connect::ResponseCache> = &*cache_guard;
+                        if let Some(cache) = cache_opt.as_ref() {
+                            if let Some(data) = cache.get_instruments() {
+                                return Ok(data);
+                            }
                         }
                     }
                 }
             }
         }
 
+        // Build endpoint
         let endpoint = KiteEndpoint::Instruments;
-
-        let path_segments = if let Some(exchange) = exchange {
-            vec![exchange]
-        } else {
-            vec![]
-        };
-
-        #[cfg(feature = "debug")]
-        log::debug!(
-            "Requesting instruments with gzip support: endpoint={:?}, path_segments={:?}",
-            endpoint,
-            path_segments
-        );
+        let path_segments: Vec<&str> = exchange.map(|e| vec![e]).unwrap_or_default();
 
         let resp = self
             .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
             .await
-            .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to get instruments: {}", e))?;
 
-        #[cfg(feature = "debug")]
-        log::debug!("Received response with status: {}", resp.status());
+        // Parse CSV response into JSON array
+        #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+        let json_response = {
+            // Handle optional gzip encoding
+            let content_encoding = resp
+                .headers()
+                .get("content-encoding")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("")
+                .to_string();
 
-        // Check if response is gzipped
-        let content_encoding = resp
-            .headers()
-            .get("content-encoding")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string();
-
-        #[cfg(feature = "debug")]
-        log::debug!("Content-Encoding: {}", content_encoding);
-
-        // Decompress if gzipped
-        let body_text = if content_encoding.contains("gzip") {
-            #[cfg(feature = "debug")]
-            log::debug!("Decompressing gzipped response");
-
-            let body_bytes = resp.bytes().await?;
-            use std::io::Read;
-            let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
-            let mut decompressed = String::new();
-            decoder.read_to_string(&mut decompressed)?;
-            decompressed
-        } else {
-            resp.text().await?
-        };
-
-        #[cfg(feature = "debug")]
-        log::debug!(
-            "Decompressed body length: {} bytes, first 200 chars: {}",
-            body_text.len(),
-            &body_text.chars().take(200).collect::<String>()
-        );
-
-        // Parse CSV response
-        let mut rdr = csv::ReaderBuilder::new().from_reader(body_text.as_bytes());
-        let mut result = Vec::new();
-
-        let headers = rdr.headers()?.clone();
-        #[cfg(feature = "debug")]
-        log::debug!("CSV headers: {:?}", headers);
-
-        let mut _record_count = 0;
-        for record in rdr.records() {
-            let record = record?;
-            let mut obj = serde_json::Map::new();
-
-            for (i, field) in record.iter().enumerate() {
-                if let Some(header) = headers.get(i) {
-                    obj.insert(header.to_string(), JsonValue::String(field.to_string()));
-                }
-            }
-            result.push(JsonValue::Object(obj));
-            _record_count += 1;
-        }
-
-        #[cfg(feature = "debug")]
-        log::debug!("Parsed {} records from CSV", _record_count);
-
-        let result_json = JsonValue::Array(result);
-
-        // Cache the result if enabled and it's the full instruments list
-        if let Some(ref cache_config) = self.cache_config {
-            if cache_config.enable_instruments_cache && exchange.is_none() {
-                if let Ok(mut cache_guard) = self.response_cache.lock() {
-                    if let Some(ref mut cache) = *cache_guard {
-                        cache.set_instruments(result_json.clone());
-                    }
-                }
-            }
-        }
-
-        Ok(result_json)
-    }
-
-    /// Debug method to show raw instruments JSON response
-    pub async fn instruments_debug_json(&self, exchange: Option<&str>) -> Result<JsonValue> {
-        let endpoint = KiteEndpoint::Instruments;
-
-        let path_segments = if let Some(exchange) = exchange {
-            vec![exchange]
-        } else {
-            vec![]
-        };
-
-        println!(
-            "🔍 Debug: Making request to endpoint: {:?}",
-            endpoint.config().path
-        );
-        println!("🔍 Debug: Path segments: {:?}", path_segments);
-
-        let resp = self
-            .send_request_with_rate_limiting_and_retry(endpoint, &path_segments, None, None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Get instruments failed: {:?}", e))?;
-
-        println!("🔍 Debug: Response status: {}", resp.status());
-
-        // Check content encoding
-        let content_encoding = resp
-            .headers()
-            .get("content-encoding")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("none")
-            .to_string();
-        println!("🔍 Debug: Content-Encoding: {}", content_encoding);
-
-        // Check content type
-        let content_type = resp
-            .headers()
-            .get("content-type")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("unknown")
-            .to_string();
-        println!("🔍 Debug: Content-Type: {}", content_type);
-
-        println!("🔍 Debug: Response headers: {:?}", resp.headers());
-
-        // Get raw bytes first
-        let body_bytes = resp.bytes().await?;
-        println!("🔍 Debug: Raw response size: {} bytes", body_bytes.len());
-
-        // Show first few bytes as hex to check if it's binary/gzipped
-        let hex_preview: String = body_bytes
-            .iter()
-            .take(20)
-            .map(|b| format!("{:02x}", b))
-            .collect::<Vec<_>>()
-            .join(" ");
-        println!("🔍 Debug: First 20 bytes (hex): {}", hex_preview);
-
-        // Try to decompress if gzipped
-        let body_text =
-            if content_encoding.contains("gzip") || body_bytes.starts_with(&[0x1f, 0x8b]) {
-                println!("🔍 Debug: Detected gzipped content, decompressing...");
+            let body_text = if content_encoding.contains("gzip") {
+                let body_bytes = resp.bytes().await.map_err(|e| anyhow::anyhow!(e))?;
                 use std::io::Read;
                 let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
                 let mut decompressed = String::new();
-                match decoder.read_to_string(&mut decompressed) {
-                    Ok(_) => {
-                        println!(
-                            "🔍 Debug: Successfully decompressed to {} chars",
-                            decompressed.len()
-                        );
-                        decompressed
-                    }
-                    Err(e) => {
-                        println!("🔍 Debug: Gzip decompression failed: {}", e);
-                        String::from_utf8_lossy(&body_bytes).to_string()
-                    }
-                }
+                decoder
+                    .read_to_string(&mut decompressed)
+                    .map_err(|e| anyhow::anyhow!("Decompression failed: {}", e))?;
+                decompressed
             } else {
-                println!("🔍 Debug: Not gzipped, reading as text");
-                String::from_utf8_lossy(&body_bytes).to_string()
+                resp.text().await.map_err(|e| anyhow::anyhow!(e))?
             };
 
-        println!("🔍 Debug: Text body length: {} chars", body_text.len());
-        println!(
-            "🔍 Debug: First 200 chars: {}",
-            &body_text.chars().take(200).collect::<String>()
-        );
-
-        // Check if it looks like CSV
-        let lines: Vec<&str> = body_text.lines().take(5).collect();
-        println!("🔍 Debug: First 5 lines:");
-        for (i, line) in lines.iter().enumerate() {
-            println!("  {}: {}", i + 1, line);
-        }
-
-        // If it's CSV, try to parse it
-        if body_text.starts_with("instrument_token") || content_type.contains("csv") {
-            println!("🔍 Debug: Attempting CSV parsing...");
-
-            let mut rdr = csv::ReaderBuilder::new().from_reader(body_text.as_bytes());
+            let mut rdr = ReaderBuilder::new().from_reader(body_text.as_bytes());
             let mut result = Vec::new();
 
-            let headers = rdr.headers()?.clone();
-            println!("🔍 Debug: CSV headers: {:?}", headers);
+            let headers = rdr
+                .headers()
+                .map_err(|e| anyhow::anyhow!("CSV header error: {}", e))?
+                .clone();
 
-            let mut record_count = 0;
             for record in rdr.records() {
-                let record = record?;
+                let record = record.map_err(|e| anyhow::anyhow!("CSV record error: {}", e))?;
                 let mut obj = serde_json::Map::new();
-
                 for (i, field) in record.iter().enumerate() {
                     if let Some(header) = headers.get(i) {
                         obj.insert(header.to_string(), JsonValue::String(field.to_string()));
                     }
                 }
                 result.push(JsonValue::Object(obj));
-                record_count += 1;
-
-                if record_count >= 10 {
-                    break;
-                } // Just parse first 10 for debugging
             }
 
-            println!("🔍 Debug: Successfully parsed {} CSV records", record_count);
-            Ok(JsonValue::Array(result))
-        } else {
-            println!("🔍 Debug: Response doesn't look like CSV");
-            // Try to parse as JSON
-            match serde_json::from_str::<JsonValue>(&body_text) {
-                Ok(json) => {
-                    println!("🔍 Debug: Successfully parsed as JSON");
-                    Ok(json)
-                }
-                Err(e) => {
-                    println!("🔍 Debug: Failed to parse as JSON: {}", e);
-                    Ok(JsonValue::String(body_text))
+            JsonValue::Array(result)
+        };
+
+        #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+        let json_response = {
+            let body = resp.text().await.map_err(|e| anyhow::anyhow!(e))?;
+            parse_csv_with_core(&body)
+                .map_err(|e| anyhow::anyhow!("CSV parse error: {}", e))?
+        };
+
+        #[cfg(not(any(
+            all(feature = "native", not(target_arch = "wasm32")),
+            all(feature = "wasm", target_arch = "wasm32")
+        )))]
+        {
+            return Err(anyhow::anyhow!(
+                "Instruments functionality requires either 'native' or 'wasm' feature to be enabled"
+            ));
+        }
+
+        // Save to cache if applicable
+        if exchange.is_none() {
+            if let Some(cache_cfg) = &self.cache_config {
+                if cache_cfg.enable_instruments_cache {
+                    if let Ok(mut cache_guard) = self.response_cache.lock() {
+                        if cache_guard.is_none() {
+                            *cache_guard = Some(crate::connect::ResponseCache::new(cache_cfg.cache_ttl_minutes));
+                        }
+                        let cache_opt_mut: &mut Option<crate::connect::ResponseCache> = &mut *cache_guard;
+                        if let Some(cache) = cache_opt_mut.as_mut() {
+                            cache.set_instruments(json_response.clone());
+                        }
+                    }
                 }
             }
         }
+
+        Ok(json_response)
+    }
+
+    /// Get the complete mutual fund instruments list (legacy JSON API)
+    ///
+    /// - REST: GET /mf/instruments
+    /// - Returns a JSON array parsed from CSV (fields as strings)
+    pub async fn mf_instruments(&self) -> Result<JsonValue> {
+        let endpoint = KiteEndpoint::MFInstruments;
+        let resp = self
+            .send_request_with_rate_limiting_and_retry(endpoint, &[], None, None)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get MF instruments: {}", e))?;
+
+        #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+        let json_response = {
+            let content_encoding = resp
+                .headers()
+                .get("content-encoding")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("")
+                .to_string();
+
+            let body_text = if content_encoding.contains("gzip") {
+                let body_bytes = resp.bytes().await.map_err(|e| anyhow::anyhow!(e))?;
+                use std::io::Read;
+                let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
+                let mut decompressed = String::new();
+                decoder
+                    .read_to_string(&mut decompressed)
+                    .map_err(|e| anyhow::anyhow!("Decompression failed: {}", e))?;
+                decompressed
+            } else {
+                resp.text().await.map_err(|e| anyhow::anyhow!(e))?
+            };
+
+            let mut rdr = ReaderBuilder::new().from_reader(body_text.as_bytes());
+            let mut result = Vec::new();
+
+            let headers = rdr
+                .headers()
+                .map_err(|e| anyhow::anyhow!("CSV header error: {}", e))?
+                .clone();
+
+            for record in rdr.records() {
+                let record = record.map_err(|e| anyhow::anyhow!("CSV record error: {}", e))?;
+                let mut obj = serde_json::Map::new();
+                for (i, field) in record.iter().enumerate() {
+                    if let Some(header) = headers.get(i) {
+                        obj.insert(header.to_string(), JsonValue::String(field.to_string()));
+                    }
+                }
+                result.push(JsonValue::Object(obj));
+            }
+
+            JsonValue::Array(result)
+        };
+
+        #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+        let json_response = {
+            let body = resp.text().await.map_err(|e| anyhow::anyhow!(e))?;
+            parse_csv_with_core(&body)
+                .map_err(|e| anyhow::anyhow!("CSV parse error: {}", e))?
+        };
+
+        #[cfg(not(any(
+            all(feature = "native", not(target_arch = "wasm32")),
+            all(feature = "wasm", target_arch = "wasm32")
+        )))]
+        {
+            return Err(anyhow::anyhow!(
+                "MF instruments functionality requires either 'native' or 'wasm' feature to be enabled"
+            ));
+        }
+
+        Ok(json_response)
     }
 }

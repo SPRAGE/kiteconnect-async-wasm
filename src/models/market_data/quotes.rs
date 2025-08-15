@@ -16,6 +16,10 @@ pub struct Quote {
     /// Exchange
     pub exchange: Exchange,
 
+    /// Exchange timestamp of the quote packet
+    #[serde(rename = "timestamp")]
+    pub timestamp: Option<DateTime<Utc>>,
+
     /// Last traded price
     #[serde(rename = "last_price")]
     pub last_price: f64,
@@ -24,9 +28,9 @@ pub struct Quote {
     #[serde(rename = "last_quantity")]
     pub last_quantity: u32,
 
-    /// Last traded time
+    /// Last traded time (can be null per spec)
     #[serde(rename = "last_trade_time")]
-    pub last_trade_time: DateTime<Utc>,
+    pub last_trade_time: Option<DateTime<Utc>>,
 
     /// Average traded price
     #[serde(rename = "average_price")]
@@ -47,7 +51,7 @@ pub struct Quote {
     #[serde(rename = "oi")]
     pub open_interest: Option<u64>,
 
-    /// Open interest day change
+    /// Open interest day high
     #[serde(rename = "oi_day_high")]
     pub oi_day_high: Option<u64>,
 
@@ -58,6 +62,14 @@ pub struct Quote {
     /// Net change from previous close
     #[serde(rename = "net_change")]
     pub net_change: f64,
+
+    /// Lower circuit limit (if available)
+    #[serde(rename = "lower_circuit_limit")]
+    pub lower_circuit_limit: Option<f64>,
+
+    /// Upper circuit limit (if available)
+    #[serde(rename = "upper_circuit_limit")]
+    pub upper_circuit_limit: Option<f64>,
 
     /// OHLC data
     pub ohlc: OHLC,

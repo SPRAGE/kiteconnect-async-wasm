@@ -1,5 +1,14 @@
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// Convert CSV string fields into f64 during deserialization
+fn deserialize_string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    s.parse::<f64>().map_err(serde::de::Error::custom)
+}
 
 /// Mutual Fund instrument data
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -14,9 +23,9 @@ pub struct MFInstrument {
     /// Fund name
     pub name: String,
 
-    /// Fund type (growth, dividend, etc.)
-    #[serde(rename = "fund_type")]
-    pub fund_type: String,
+    /// Fund type (legacy alias, not present in CSV; prefer `dividend_type`/`scheme_type`)
+    #[serde(default)]
+    pub fund_type: Option<String>,
 
     /// Fund category (equity, debt, hybrid, etc.)
     pub plan: String,
@@ -26,35 +35,50 @@ pub struct MFInstrument {
     pub settlement_type: String,
 
     /// Minimum purchase amount
-    #[serde(rename = "minimum_purchase_amount")]
+    #[serde(
+        rename = "minimum_purchase_amount",
+        deserialize_with = "deserialize_string_to_f64"
+    )]
     pub minimum_purchase_amount: f64,
 
     /// Purchase amount multiple
-    #[serde(rename = "purchase_amount_multiplier")]
+    #[serde(
+        rename = "purchase_amount_multiplier",
+        deserialize_with = "deserialize_string_to_f64"
+    )]
     pub purchase_amount_multiplier: f64,
 
     /// Minimum additional purchase amount
-    #[serde(rename = "minimum_additional_purchase_amount")]
+    #[serde(
+        rename = "minimum_additional_purchase_amount",
+        deserialize_with = "deserialize_string_to_f64"
+    )]
     pub minimum_additional_purchase_amount: f64,
 
     /// Minimum redemption quantity
-    #[serde(rename = "minimum_redemption_quantity")]
+    #[serde(
+        rename = "minimum_redemption_quantity",
+        deserialize_with = "deserialize_string_to_f64"
+    )]
     pub minimum_redemption_quantity: f64,
 
     /// Redemption quantity multiple
-    #[serde(rename = "redemption_quantity_multiplier")]
+    #[serde(
+        rename = "redemption_quantity_multiplier",
+        deserialize_with = "deserialize_string_to_f64"
+    )]
     pub redemption_quantity_multiplier: f64,
 
-    /// Dividend reinvestment flag
+    /// Dividend reinvestment flag (growth/dividend)
     #[serde(rename = "dividend_type")]
     pub dividend_type: String,
 
-    /// Scheme type (open-ended, close-ended)
+    /// Scheme type (equity, elss, etc.)
     #[serde(rename = "scheme_type")]
     pub scheme_type: String,
 
     /// Last price (NAV)
-    #[serde(rename = "last_price")]
+    #[serde(rename = "last_price", deserialize_with = "deserialize_string_to_f64")]
     pub last_price: f64,
 
     /// Last price date
