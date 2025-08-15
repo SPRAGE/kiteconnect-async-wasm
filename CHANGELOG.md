@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.10] - 2025-08-15
+
+### Added
+- Official margin and charges endpoints with typed helpers
+  - POST /margins/orders -> `calculate_order_margins` + `_typed`
+  - POST /margins/basket -> `calculate_basket_margins` + `_typed`
+  - POST /charges/orders -> `calculate_order_charges` + `_typed`
+- New example: `examples/margin_calculation_example.rs`
+- Migration guide: `README_MIGRATION_V1_TO_V1_0_9.md`
+
+### Changed
+- Rate limits aligned to spec: Standard endpoints now 3 rps
+- REST paths fixed for order_history and order_trades
+- Instruments/MF instruments parsing consolidated; gzip handled transparently
+- Removed non-spec debug helpers from docs and examples
+
+### Tests
+- Mock API suite extended to cover quote/ohlc/ltp, historical, margins, basket margins
+- All tests passing
+  - Unit: 32 passed
+  - Integration: 9 passed, 2 ignored
+  - Mock API: 2 passed
+  - Doctests: 133 passed
+
 ## [1.0.9] - 2025-08-15
 
 ### Added

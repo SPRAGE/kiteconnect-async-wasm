@@ -1,4 +1,4 @@
-# KiteConnect Async WASM v1.0.6
+# KiteConnect Async WASM v1.0.10
 
 > ⚠️ **IMPORTANT DISCLAIMER** ⚠️
 > 
@@ -20,7 +20,7 @@
 
 A production-ready, high-performance Rust library for KiteConnect API integration featuring both legacy and strongly-typed APIs.
 
-## 🚀 Features v1.0.6
+## 🚀 Features v1.0.10
 
 - ✅ **Robust Historical Data API** - Enhanced `Candle` deserialization with support for multiple API response formats
 - ✅ **Environment Variable Integration** - All examples use secure environment variables for API credentials  
@@ -31,6 +31,8 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 - ✅ **Dual Serde Support** - Flexible Interval enum accepting both strings and integers
 - ✅ **Organized Enum System** - Modular enum structure for better maintainability
 - ✅ **Dual API Support** - Legacy JSON + new strongly-typed APIs
+- ✅ **Official Margins & Charges APIs** - Order/basket margins and virtual contract note endpoints
+- ✅ **Rate Limits Aligned to Spec** - Quote: 1 rps, Historical: 3 rps, Orders: 10 rps, Standard: 3 rps
 - ✅ **Automatic Retry Logic** with exponential backoff
 - ✅ **Response Caching** for performance optimization
 - ✅ **Full WASM Compatibility** for web applications  
@@ -39,57 +41,14 @@ A production-ready, high-performance Rust library for KiteConnect API integratio
 - ✅ **Backward Compatibility** - all existing code continues to work
 - ✅ **Professional Code Quality** - Clippy optimized and formatted
 
-## 🆕 What's New in v1.0.6
-
-### 🔧 Enhanced Historical Data Reliability
-
-The v1.0.6 release focuses on making historical data fetching **production-ready** and **robust**:
-
-```rust
-use kiteconnect_async_wasm::connect::KiteConnect;
-use kiteconnect_async_wasm::models::market_data::HistoricalDataRequest;
-use kiteconnect_async_wasm::models::common::Interval;
-use chrono::NaiveDateTime;
-use std::env;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 🔒 Secure: Use environment variables
-    let api_key = env::var("KITE_API_KEY")?;
-    let access_token = env::var("KITE_ACCESS_TOKEN")?;
-    let client = KiteConnect::new(&api_key, &access_token);
-
-    // 📊 Robust: Handles various API response formats
-    let request = HistoricalDataRequest::new(
-        256265, // Instrument token
-        NaiveDateTime::parse_from_str("2024-12-20 09:00:00", "%Y-%m-%d %H:%M:%S")?,
-        NaiveDateTime::parse_from_str("2024-12-20 16:00:00", "%Y-%m-%d %H:%M:%S")?,
-        Interval::FiveMinute,
-    );
-
-    // ✅ Works reliably with real KiteConnect API
-    let data = client.historical_data_typed(request).await?;
-    println!("Fetched {} candles successfully!", data.candles.len());
-    
-    Ok(())
-}
-```
-
-**Key Improvements:**
-- ✅ **Custom Candle Deserializer** - Handles both array and object formats from KiteConnect API
-- ✅ **Metadata Synthesis** - Generates metadata when API doesn't provide it  
-- ✅ **Timezone Support** - Proper parsing of +0530 timezone and various date formats
-- ✅ **Missing Field Handling** - Graceful handling when Open Interest (OI) data is unavailable
-- ✅ **Environment Variables** - All examples use secure credential management
-- ✅ **Real API Testing** - Examples tested with actual KiteConnect API responses
-
-## New in v1.0.9
+## 🆕 New in v1.0.10
 
 - Official margin and charges endpoints:
   - `calculate_order_margins` / `_typed` (POST /margins/orders)
   - `calculate_basket_margins` / `_typed` (POST /margins/basket)
   - `calculate_order_charges` / `_typed` (POST /charges/orders)
-- Example: `examples/margin_calculation_example.rs`
+- Rate limiter alignment to official categories (Standard = 3 rps)
+- Expanded mock test coverage and examples (`examples/margin_calculation_example.rs`)
 
 ## 🎯 Quick Start
 
@@ -97,10 +56,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-kiteconnect-async-wasm = "1.0.9"
+kiteconnect-async-wasm = "1.0.10"
 
 # For WASM targets
-# kiteconnect-async-wasm = "1.0.9", features = ["wasm"] }
+# kiteconnect-async-wasm = { version = "1.0.10", features = ["wasm"] }
 ```
 
 ### Basic Usage (Legacy API - Backward Compatible)
