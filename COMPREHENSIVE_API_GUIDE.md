@@ -622,4 +622,79 @@ async fn monitor_portfolio(client: &KiteConnect) -> Result<(), Box<dyn std::erro
 }
 ```
 
-This documentation provides comprehensive examples for all major use cases of the KiteConnect Async WASM library. The examples demonstrate both the legacy and new typed APIs, proper error handling, and best practices for production use.
+## Margins and Charges
+
+- Calculate margins for orders: `calculate_order_margins` / `calculate_order_margins_typed`
+- Calculate basket margins: `calculate_basket_margins` / `calculate_basket_margins_typed`
+- Virtual contract note (charges): `calculate_order_charges` / `calculate_order_charges_typed`
+
+Models: `OrderMarginRequest`, `OrderMarginResult`, `BasketMarginsData`, `OrderChargesRequest`, `OrderChargesResult`, `ChargesBreakdown`.
+
+### Example: Order Margin Calculation
+
+```rust
+use kiteconnect_async_wasm::models::orders::OrderMarginRequest;
+
+// Single order margin calculation
+let margin_request = OrderMarginRequest {
+    exchange: Exchange::NSE,
+    tradingsymbol: "RELIANCE".to_string(),
+    transaction_type: TransactionType::BUY,
+    quantity: 10,
+    order_type: OrderType::LIMIT,
+    price: Some(2500.0),
+    product: Product::CNC,
+    validity: Validity::DAY,
+};
+
+let margin_result = client.calculate_order_margins_typed(&margin_request).await?;
+println!("Margin required: ₹{:.2}", margin_result.margin_required);
+
+// Basket margin calculation
+let basket_request = vec![
+    OrderMarginRequest {
+        exchange: Exchange::NSE,
+        tradingsymbol: "RELIANCE".to_string(),
+        transaction_type: TransactionType::BUY,
+        quantity: 10,
+        order_type: OrderType::LIMIT,
+        price: Some(2500.0),
+        product: Product::CNC,
+        validity: Validity::DAY,
+    },
+    OrderMarginRequest {
+        exchange: Exchange::NSE,
+        tradingsymbol: "TCS".to_string(),
+        transaction_type: TransactionType::SELL,
+        quantity: 5,
+        order_type: OrderType::LIMIT,
+        price: Some(3500.0),
+        product: Product::CNC,
+        validity: Validity::DAY,
+    },
+];
+
+let basket_margin_result = client.calculate_basket_margins_typed(&basket_request).await?;
+println!("Total basket margin required: ₹{:.2}", basket_margin_result.total_margin);
+```
+
+### Example: Order Charges Calculation
+
+```rust
+use kiteconnect_async_wasm::models::orders::OrderChargesRequest;
+
+// Calculate charges for an order
+let charges_request = OrderChargesRequest {
+    exchange: Exchange::NSE,
+    tradingsymbol: "RELIANCE".to_string(),
+    transaction_type: TransactionType::BUY,
+    quantity: 10,
+    order_type: OrderType::LIMIT,
+    price: Some(2500.0),
+    product: Product::CNC,
+    validity: Validity::DAY,
+};
+
+let charges_result = client.calculate_order_charges_typed(&charges_request).await?;
+println!("Order charges: {:?}", charges_result.breakdown);
+```

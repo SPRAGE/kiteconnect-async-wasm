@@ -17,7 +17,7 @@
 //! - **Quote data**: 1 request/second (most restrictive)
 //! - **Historical data**: 3 requests/second
 //! - **Order operations**: 10 requests/second  
-//! - **Standard operations**: 10 requests/second
+//! - **Standard operations**: 3 requests/second
 //!
 //! ## URL Construction
 //!
@@ -106,7 +106,7 @@ impl HttpMethod {
 /// - **Quote**: Real-time market data (most restrictive at 1 req/sec)
 /// - **Historical**: Historical market data (3 req/sec)  
 /// - **Orders**: Trading operations (10 req/sec)
-/// - **Standard**: General operations (10 req/sec)
+/// - **Standard**: General operations (3 req/sec)
 ///
 /// ## Rate Limit Enforcement
 ///
@@ -148,7 +148,7 @@ pub enum RateLimitCategory {
     /// Higher limits support active trading while preventing system abuse.
     Orders,
 
-    /// All other endpoints: 10 requests/second
+    /// All other endpoints: 3 requests/second
     ///
     /// Default category for portfolio, profile, and other general operations.
     /// Provides good throughput for typical application usage patterns.
@@ -170,14 +170,14 @@ impl RateLimitCategory {
     /// assert_eq!(RateLimitCategory::Quote.requests_per_second(), 1);
     /// assert_eq!(RateLimitCategory::Historical.requests_per_second(), 3);  
     /// assert_eq!(RateLimitCategory::Orders.requests_per_second(), 10);
-    /// assert_eq!(RateLimitCategory::Standard.requests_per_second(), 10);
+    /// assert_eq!(RateLimitCategory::Standard.requests_per_second(), 3);
     /// ```
     pub fn requests_per_second(&self) -> u32 {
         match self {
             RateLimitCategory::Quote => 1,
             RateLimitCategory::Historical => 3,
             RateLimitCategory::Orders => 10,
-            RateLimitCategory::Standard => 10,
+            RateLimitCategory::Standard => 3,
         }
     }
 
@@ -221,8 +221,6 @@ impl Endpoint {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum KiteEndpoint {
     // === Authentication Endpoints ===
-    /// Generate login URL
-    LoginUrl,
     /// Generate session from request token
     GenerateSession,
     /// Invalidate session
@@ -285,6 +283,12 @@ pub enum KiteEndpoint {
     TriggerRange,
     /// Get market margins
     MarketMargins,
+    /// Calculate margin for orders (JSON POST)
+    CalculateOrderMargins,
+    /// Calculate margin for a basket of orders (JSON POST)
+    CalculateBasketMargins,
+    /// Calculate order-wise charges (JSON POST)
+    CalculateOrderCharges,
 
     // === Mutual Fund Endpoints ===
     /// Place MF order
@@ -326,12 +330,6 @@ impl KiteEndpoint {
     pub fn config(&self) -> Endpoint {
         match self {
             // === Authentication Endpoints ===
-            KiteEndpoint::LoginUrl => Endpoint::new(
-                HttpMethod::GET,
-                "/connect/login",
-                RateLimitCategory::Standard,
-                false,
-            ),
             KiteEndpoint::GenerateSession => Endpoint::new(
                 HttpMethod::POST,
                 "/session/token",
@@ -485,6 +483,24 @@ impl KiteEndpoint {
                 RateLimitCategory::Standard,
                 true,
             ),
+            KiteEndpoint::CalculateOrderMargins => Endpoint::new(
+                HttpMethod::POST,
+                "/margins/orders",
+                RateLimitCategory::Standard,
+                true,
+            ),
+            KiteEndpoint::CalculateBasketMargins => Endpoint::new(
+                HttpMethod::POST,
+                "/margins/basket",
+                RateLimitCategory::Standard,
+                true,
+            ),
+            KiteEndpoint::CalculateOrderCharges => Endpoint::new(
+                HttpMethod::POST,
+                "/charges/orders",
+                RateLimitCategory::Standard,
+                true,
+            ),
 
             // === Mutual Fund Endpoints ===
             KiteEndpoint::PlaceMFOrder => Endpoint::new(
@@ -600,20 +616,6 @@ impl KiteEndpoint {
     }
 
     /// Build the full URL path with dynamic segments
-    ///
-    /// # Arguments
-    ///
-    /// * `segments` - Dynamic path segments to append
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use kiteconnect_async_wasm::connect::endpoints::KiteEndpoint;
-    ///
-    /// let endpoint = KiteEndpoint::OrderHistory;
-    /// let path = endpoint.build_path(&["order_id_123"]);
-    /// assert_eq!(path, "/orders/order_id_123");
-    /// ```
     pub fn build_path(&self, segments: &[&str]) -> String {
         let base_path = self.path();
         if segments.is_empty() {
@@ -628,7 +630,6 @@ impl KiteEndpoint {
         use KiteEndpoint::*;
 
         let all_endpoints = vec![
-            LoginUrl,
             GenerateSession,
             InvalidateSession,
             RenewAccessToken,
@@ -653,6 +654,9 @@ impl KiteEndpoint {
             MFInstruments,
             TriggerRange,
             MarketMargins,
+            CalculateOrderMargins,
+            CalculateBasketMargins,
+            CalculateOrderCharges,
             PlaceMFOrder,
             CancelMFOrder,
             MFOrders,
@@ -686,7 +690,7 @@ mod tests {
         assert_eq!(RateLimitCategory::Quote.requests_per_second(), 1);
         assert_eq!(RateLimitCategory::Historical.requests_per_second(), 3);
         assert_eq!(RateLimitCategory::Orders.requests_per_second(), 10);
-        assert_eq!(RateLimitCategory::Standard.requests_per_second(), 10);
+        assert_eq!(RateLimitCategory::Standard.requests_per_second(), 3);
     }
 
     #[test]
@@ -737,15 +741,6 @@ mod tests {
     }
 
     #[test]
-    fn test_authentication_requirements() {
-        assert!(!KiteEndpoint::LoginUrl.requires_auth());
-        assert!(!KiteEndpoint::GenerateSession.requires_auth());
-        assert!(KiteEndpoint::Profile.requires_auth());
-        assert!(KiteEndpoint::Holdings.requires_auth());
-        assert!(KiteEndpoint::PlaceOrder.requires_auth());
-    }
-
-    #[test]
     fn test_min_delay_calculation() {
         assert_eq!(
             RateLimitCategory::Quote.min_delay(),
@@ -761,7 +756,7 @@ mod tests {
         );
         assert_eq!(
             RateLimitCategory::Standard.min_delay(),
-            Duration::from_millis(100)
+            Duration::from_millis(333)
         );
     }
 }

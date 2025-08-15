@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2025-08-15
+
+### Added
+- Comprehensive mock API test suite using isolated mock servers and payloads synced from `mocks/` (mirrors zerodha/kiteconnect-mocks)
+  - Coverage: instruments (gzip + plain), MF instruments, holdings, positions, orders, trades, trigger_range, quote/ohlc/ltp, historical data, margins, order margins (POST /margins/orders), basket margins (POST /margins/basket)
+  - Typed API-first tests with legacy JSON paths validated for compatibility
+
+### Changed
+- Strict REST API parity and centralized endpoint management
+  - Unified enum for endpoints with method/path/rate-limit metadata
+  - Standardized margin endpoints (orders, basket, charges) and error handling
+  - Restored legacy JSON-returning methods alongside typed methods across modules
+  - Hardened CSV parsing (header trimming, gzip handling) for instruments and MF instruments
+- Rate limiter refined with per-category limits and monitoring
+  - Quote: 1 rps, Historical: 3 rps, Orders: 10 rps, Standard: 3 rps
+  - Updated tests and stats to reflect configured limits
+
+### Fixed
+- Basket margins mock payload aligned to `BasketMarginsData` (includes initial, final_, orders, charges)
+- POST JSON helper sets Content-Type and retries properly, preventing 501 from unmatched mocks with query strings
+- Doctest failures resolved
+  - Replaced legacy `quote()` usage with `quote_typed()` in examples
+  - MF instruments example prints optional fields with `{:?}`
+- Minor serde and docs consistency issues across models and examples
+
+### Tests
+- All tests passing
+  - Unit: 32 passed
+  - Integration: 9 passed, 2 ignored
+  - Mock API: 2 passed
+  - Doctests: 133 passed
+- Rate limiter tests assert Standard category at 3 rps
+
+### Migration Notes
+- Prefer typed methods: `quote_typed()`, `ohlc_typed()`, `ltp_typed()`; legacy JSON methods remain for compatibility
+- WebSocket/ticker remains out of scope (REST-only)
+
 ## [1.0.7] - 2025-06-29
 
 ### Fixed

@@ -83,6 +83,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - ✅ **Environment Variables** - All examples use secure credential management
 - ✅ **Real API Testing** - Examples tested with actual KiteConnect API responses
 
+## New in v1.0.9
+
+- Official margin and charges endpoints:
+  - `calculate_order_margins` / `_typed` (POST /margins/orders)
+  - `calculate_basket_margins` / `_typed` (POST /margins/basket)
+  - `calculate_order_charges` / `_typed` (POST /charges/orders)
+- Example: `examples/margin_calculation_example.rs`
+
 ## 🎯 Quick Start
 
 ### Installation

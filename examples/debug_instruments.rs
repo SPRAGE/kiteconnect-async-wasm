@@ -40,34 +40,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("Rate limiter stats: {:?}\n", stats);
 
-    // Test 0: Raw debug to see exactly what's happening
-    println!("🔄 Testing raw debug instruments API...");
-    match client.instruments_debug_json(None).await {
-        Ok(debug_response) => {
-            println!("✅ Raw debug completed - check output above for details");
-            if let Some(array) = debug_response.as_array() {
-                println!("📊 Debug method found {} instruments", array.len());
-            }
-        }
-        Err(e) => {
-            println!("❌ Raw debug failed: {}", e);
-        }
-    }
-    println!();
-
-    // Test 1: Get all instruments using legacy JSON API
-    println!("🔄 Testing legacy instruments API...");
+    // Test 0: Instruments API
+    println!("🔄 Testing instruments API...");
     match client.instruments(None).await {
         Ok(instruments_json) => {
-            println!("✅ Raw response type: {:?}", instruments_json);
             if let Some(instruments_array) = instruments_json.as_array() {
                 println!(
-                    "✅ Legacy API returned {} instruments",
+                    "✅ API returned {} instruments",
                     instruments_array.len()
                 );
 
                 if instruments_array.is_empty() {
-                    println!("⚠️  Empty instruments array - this indicates gzip compression issue");
+                    println!("⚠️  Empty instruments array");
                     if let Some(obj) = instruments_json.as_object() {
                         println!("📄 Response object: {}", serde_json::to_string_pretty(obj)?);
                     }
@@ -82,89 +66,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             } else {
                 println!(
-                    "❌ Legacy API returned non-array response: {:?}",
+                    "❌ API returned non-array response: {:?}",
                     instruments_json
                 );
             }
         }
         Err(e) => {
-            println!("❌ Legacy API failed: {:?}", e);
+            println!("❌ Instruments API failed: {:?}", e);
             println!("   Error details: {}", e);
         }
     }
     println!();
 
-    // Test 1.5: Test new gzip-aware method
-    println!("🔄 Testing gzip-aware instruments API...");
-    match client.instruments_with_gzip(None).await {
-        Ok(instruments_json) => {
-            if let Some(instruments_array) = instruments_json.as_array() {
-                println!(
-                    "✅ Gzip-aware API returned {} instruments",
-                    instruments_array.len()
-                );
+    // Test 1: Get all instruments using legacy JSON API (same as above)
 
-                if !instruments_array.is_empty() {
-                    // Show first instrument details for debugging
-                    if let Some(first_instrument) = instruments_array.first() {
-                        println!(
-                            "📄 First instrument (gzip): {}",
-                            serde_json::to_string_pretty(first_instrument)?
-                        );
-                    }
-                }
-            } else {
-                println!(
-                    "❌ Gzip-aware API returned non-array response: {:?}",
-                    instruments_json
-                );
-            }
-        }
-        Err(e) => {
-            println!("❌ Gzip-aware API failed: {:?}", e);
-        }
-    }
-    println!();
+    // Test 1.5: Removed gzip-specific method (implementation consolidated)
 
-    // Test 2: Get instruments using typed API with debug
-    println!("🔄 Testing typed instruments API with debug...");
-    match client.instruments_typed_debug(None).await {
-        Ok(instruments) => {
-            println!(
-                "✅ Typed API with debug returned {} instruments",
-                instruments.len()
-            );
-
-            // Show first instrument details for debugging
-            if let Some(first_instrument) = instruments.first() {
-                println!("📄 First instrument (typed debug): {:#?}", first_instrument);
-            }
-        }
-        Err(e) => {
-            println!("❌ Typed API with debug failed: {:?}", e);
-        }
-    }
-    println!();
-
-    // Test 3: Get instruments using regular typed API
-    println!("🔄 Testing regular typed instruments API...");
+    // Test 2: Get instruments using typed API
+    println!("🔄 Testing typed instruments API...");
     match client.instruments_typed(None).await {
-        Ok(instruments) => {
-            println!(
-                "✅ Regular typed API returned {} instruments",
-                instruments.len()
-            );
+         Ok(instruments) => {
+            println!("✅ Typed API returned {} instruments", instruments.len());
 
-            // Show first instrument details for debugging
-            if let Some(first_instrument) = instruments.first() {
+             // Show first instrument details for debugging
+             if let Some(first_instrument) = instruments.first() {
                 println!("📄 First instrument (typed): {:#?}", first_instrument);
-            }
-        }
-        Err(e) => {
-            println!("❌ Regular typed API failed: {:?}", e);
-        }
-    }
-    println!();
+             }
+         }
+         Err(e) => {
+            println!("❌ Typed API failed: {:?}", e);
+         }
+     }
+     println!();
+
+     // Test 3: Get instruments using regular typed API
+    println!("🔄 Testing regular typed instruments API again...");
+    match client.instruments_typed(None).await {
+         Ok(instruments) => {
+             println!(
+                 "✅ Regular typed API returned {} instruments",
+                 instruments.len()
+             );
+
+             // Show first instrument details for debugging
+             if let Some(first_instrument) = instruments.first() {
+                 println!("📄 First instrument (typed): {:#?}", first_instrument);
+             }
+         }
+         Err(e) => {
+             println!("❌ Regular typed API failed: {:?}", e);
+         }
+     }
+     println!();
 
     // Test 3: Try NSE specific instruments
     println!("🔄 Testing NSE-specific instruments...");

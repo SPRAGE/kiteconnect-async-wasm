@@ -10,7 +10,7 @@ parameters with precise datetime control and builder patterns.
 - **Precise DateTime Control**: Use `NaiveDateTime` for hour/minute/second precision
 - **Builder Pattern**: Fluent API for constructing requests
 - **Type Safety**: Compile-time validation of parameters
-- **Flexible Options**: Support for continuous data and open interest
+- **Flexible Options**: Support for continuous futures series and open interest
 
 # Example
 
@@ -92,8 +92,8 @@ use serde_json::Value;
 ///     NaiveDateTime::parse_from_str("2023-11-20 09:00:00", "%Y-%m-%d %H:%M:%S")?,
 ///     NaiveDateTime::parse_from_str("2023-11-20 16:00:00", "%Y-%m-%d %H:%M:%S")?,
 ///     Interval::FiveMinute,
-/// ).continuous(true)  // Include pre/post market
-///  .with_oi(false);   // No open interest for equity
+/// ).continuous(true)  // Enable continuous futures series (NFO/MCX futures only)
+///  .with_oi(false);   // Include OI for derivatives when true
 /// # Ok(())
 /// # }
 /// ```
@@ -151,7 +151,7 @@ pub struct HistoricalDataRequest {
     /// - `false`: Individual contract data (default)
     /// - `None`: Uses API default (false)
     ///
-    /// Only applicable to futures instruments. Has no effect on equity/options.
+    /// Only applicable to NFO/MCX futures contracts. Has no effect on equity/options.
     pub continuous: Option<bool>,
 
     /// Open interest data flag (for derivatives)
